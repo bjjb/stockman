@@ -1,0 +1,48 @@
+
+<div class="panel panel-{{context}} order">
+  <div class="panel-heading">
+    <h4 class="panel-title customer"><a data-toggle="collapse" data-parent="#orders-panel-group" href="#order-{{id}}-panel" class="customer">{{customer}}</a></h4>
+  </div>
+  <div id="order-{{id}}-panel" class="panel-collapse collapse">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th class="quantity">Quantity</th>
+          <th class="product">Product</th>
+          <th class="actions"></th>
+        </tr>
+      </thead>
+      <tbody>{{#items}}
+        <tr class="order-item">
+          <td class="quantity">{{quantity}}</td>
+          <td class="product">{{product}}</td>
+          <td class="action">
+            <form hidden="hidden" class="form price">
+              <div class="input-group"><span class="input-group-addon">$</span>
+                <input type="number" name="price" step="0.05" placeholder="price" class="form-control"/>
+              </div>
+            </form>
+            <div class="btn-group action">
+              <button type="button" class="btn action">{{action}}</button>
+              <button data-toggle="dropdown" class="btn dropdown-toggle"><span class="caret"></span></button>
+              <ul class="dropdown-menu">
+                <li><a href="#" class="action">Sell</a></li>
+                <li><a href="#" class="action">Hold</a></li>
+                <li><a href="#" class="action">Short</a></li>
+                <li><a href="#" class="action">Cancel</a></li>
+                <li class="divider"></li>
+                <li><a href="#" class="action">Undo</a></li>
+              </ul>
+            </div>
+          </td>
+        </tr>{{/items}}
+      </tbody>
+    </table>
+    <div class="panel-body">
+      <form class="form">
+        <textarea name="comment" placeholder="Comment" class="form-control">{{ comment }}</textarea>
+      </form>
+    </div>
+    <div class="panel-footer"><span class="total">$ {{total}}</span></div>
+  </div>
+</div>{{/.}}

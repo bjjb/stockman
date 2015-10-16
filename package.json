@@ -1,0 +1,29 @@
+{
+  "name": "stockman",
+  "version": "0.0.1",
+  "description": "A HTML5 stock and order manager, backed by Google Drive",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://bitbucket.org/bjjb/stockman"
+  },
+  "keywords": [
+    "stock",
+    "inventory",
+    "order",
+    "manager"
+  ],
+  "author": "bjjb",
+  "license": "ISC",
+  "devDependencies": {
+    "bower": "^1.5.3",
+    "coffee-script": "^1.10.0",
+    "express": "^4.13.3",
+    "jade": "^1.11.0",
+    "mocha": "^2.3.3",
+    "stylus": "^0.52.4"
+  }
+}
