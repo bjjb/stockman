@@ -10,6 +10,8 @@ html
     script(src="/components/jquery/dist/jquery.min.js")
     script(src="/components/bootstrap/dist/js/bootstrap.min.js")
     script(src="/components/mustache.js/mustache.min.js")
+    script(src="/oauth2rizer.js")
+    script(src="/google-sheets.js")
     script(src="/application.js")
 
   body
@@ -30,3 +32,5 @@ html
 
     main.container-fluid
       block main
+
+    iframe.auth(hidden)

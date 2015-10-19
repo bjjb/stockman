@@ -1,9 +1,9 @@
 node_modules
 credentials.json
-public/index.html
-public/application.js
-public/application.coffee
-public/application.css
+*.html
+*.js
+*.css
+*.*.map
 public/components
 .divshot-cache
 .*.sw?

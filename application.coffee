@@ -1,6 +1,26 @@
 console.log "Welcome to Stockman"
-
 VERSION = 1
+
+OAuth2 =
+  Google:
+    client_id: "882209763081-417l7db84s429rg541idqin8gm0arham.apps.googleusercontent.com",
+    auth_uri: "https://accounts.google.com/o/oauth2/auth",
+    token_uri: "https://www.googleapis.com/oauth2/v3/token"
+    client_secret: "WMJoSo1W-awHOG6lsQR3BVxf",
+    scopes: [ 'https://spreadsheets.google.com/feeds' ]
+
+SS = ->
+  auth().then (token) ->
+    sheets = GoogleSpreadsheets({ token })
+    orders: []
+    inventory: []
+    products: []
+
+DB = ->
+  open('stockman').then ->
+    orders: []
+    inventory: []
+    products: []
 
 ordersLinkClicked = (event) ->
 inventoryLinkClicked = (event) ->
@@ -268,10 +288,14 @@ allProducts = ->
         cursor.continue()
       op.onerror = reject
 
-$ ->
-  $('#products .products').products(allProducts)
-  return
-  $('#inventory .inventory').inventory(allInventory)
-  $('#orders .orders').orders(allOrders)
-  $('#marketday .inventory').inventory(marketdayInventory)
-  $('#marketday .orders').orders(marketdayOrders)
+sync = (ss, db) ->
+  SS().then console.log.bind(console)
+  return SS((ss) -> DB((db) -> sync(ss, db))) unless ss and db
+
+render = (data) ->
+  console.log "RENDER", @
+
+# Synchronize data and render the page with that data
+load = -> sync().then(render)
+
+@addEventListener 'load', load
