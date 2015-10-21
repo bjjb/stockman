@@ -222,10 +222,11 @@ allProducts = ->
 
 CREDENTIALS =
   client_id: "882209763081-417l7db84s429rg541idqin8gm0arham.apps.googleusercontent.com",
+  client_secret: "WMJoSo1W-awHOG6lsQR3BVxf",
   auth_uri: "https://accounts.google.com/o/oauth2/auth",
   token_uri: "https://www.googleapis.com/oauth2/v3/token"
-  client_secret: "WMJoSo1W-awHOG6lsQR3BVxf",
   scopes: [ 'https://spreadsheets.google.com/feeds' ]
+  redirect_uri: "#{location.protocol}//#{location.host}/oath2"
 
 { Spreadsheet, Database } = @stockman
 sync = ->

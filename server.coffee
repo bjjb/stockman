@@ -1,18 +1,29 @@
-express = require 'express'
-morgan  = require 'morgan'
-sheets  = require './google-sheets'
+server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
+  port        ?= process.env.PORT or 3474
+  logLevel    ?= if process.env.NODE_ENV is 'dev' then 'dev' else 'tiny'
+  staticDirs  ?= [ 'public' ]
+  middlewares ?= [
+    [ '/oauth', require('./oauth2rizer').middleware ]
+    [ '/google-sheets', require('./google-sheets').middleware ]
+  ]
 
-app = express()
-app.use morgan('tiny')
-app.use express.static('.')
+  express = require 'express'
+  morgan  = require 'morgan'
+  sheets  = require './google-sheets'
 
-app.use '/google-sheets*', sheets.GoogleSheets.proxy
-#app.use oauth2.oauth2rizer.proxy
+  app = express()
+  app.use morgan(logLevel)
+  app.use express.static(d) for d in staticDirs
 
-app.start = (port) -> app.listen port or process.env.PORT or 3000, ->
-  { address, port } = @address()
-  { name, version } = require './package'
-  console.log "#{name} v#{version} listening on #{address}:#{port}"
+  console.log("app.use: ", middleware...) for middleware in middlewares
+  app.use(middleware...) for middleware in middlewares
 
-app.start() if process.argv[1] is __filename
-module.exports = app.start.bind(app)
+  app.listen port or process.env.PORT or 3000, ->
+    { address, port } = @address()
+    { name, version } = require './package'
+    console.log "#{name} v#{version} listening on #{address}:#{port}"
+
+if process.argv[1] is __filename
+  server()
+else # Start if standalone
+  module.exports = server

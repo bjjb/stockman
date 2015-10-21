@@ -36,11 +36,8 @@ GoogleSheets = ({ token, XMLHttpRequest, Promise, CORSProxy } = {}) ->
       xhr.send()
   { index, get }
 
-GoogleSheets.proxy = (req, res, next) ->
-  console.log "Not implemented."
-  console.log req
-  console.log res
-  console.log next
+middleware = (req, res, next) ->
   res.end("Google Sheets proxy not implented.")
 
 @GoogleSheets = GoogleSheets
+module.exports.middleware = middleware if module?.exports?

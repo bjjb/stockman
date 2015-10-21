@@ -1,5 +1,5 @@
 SRC  = '.'
-DIST = '.'
+DIST = 'public'
 
 log = (x) ->
   console.log(x) if x?.trim()
@@ -20,9 +20,14 @@ rmdir = (d) ->
       resolve()
 rm = (f) ->
   new Promise (resolve, reject) ->
-    require('fs').stat(f).then (stats) ->
-      return unlink(f) if stats.isFile()
-      ls(f).then((entries) -> Promise.all(rm(e) for e in entries)).then -> rmdir(f)
+    require('fs').stat f,  (stats) ->
+      return unlink(f).then(resolve) if stats.isFile()
+      ls(f).then((entries) -> Promise.all(rm(e) for e in entries)).then -> rmdir(f).then(resolve)
+mkdir = (d) ->
+  new Promise (resolve, reject) ->
+    require('fs').mkdir d, (err) ->
+      return reject(err) if err? and err.code isnt 'EEXIST'
+      resolve(d)
 exec = (cmd) ->
   new Promise (resolve, reject) ->
     p = require('child_process').exec "node_modules/.bin/#{cmd}"
@@ -30,16 +35,17 @@ exec = (cmd) ->
     p.stderr.on 'data', log
     p.on 'exit', resolve
     p.on 'error', reject
-html   = -> exec "jade   -o #{DIST} -HP -O ./.credentials.json #{SRC}/*.jade"
+dist   = -> mkdir(DIST)
+html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
 css    = -> exec "stylus -o #{DIST} -m  #{SRC}/*.styl"
 js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
-build  = -> Promise.all [html(), css(), js()]
-watch  = -> Promise.all [watch.html(), watch.css(), watch.js()]
-watch.html   = -> exec "jade   -w -o #{DIST} -HP -O ./.credentials.json #{SRC}/*.jade"
+build  = -> Promise.all [dist(), html(), css(), js()]
+watch  = -> Promise.all [build(), watch.html(), watch.css(), watch.js()]
+watch.html   = -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
 watch.css    = -> exec "stylus -w -o #{DIST} -m  #{SRC}/*.styl"
 watch.js     = -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
 server  = -> build().then Promise.race([watch(), serve()])
-serve = -> require('./server')(process.env.PORT or 3474)
+serve = -> require('./server')(staticDirs: ['public'], port: 3474, logLevel: 'dev')
 
 task "build",  "compile the site",              build
 task "watch",  "watch for changes and compile", watch

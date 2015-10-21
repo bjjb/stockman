@@ -78,9 +78,9 @@ chooseSpreadsheet = (sheets) ->
         select.addEventListener 'change', changed
         location.hash = '#choose-ss'
 
-Spreadsheet = (credentials) ->
-  oauth2rizer(credentials)().then (token) ->
-    sheets = GoogleSheets({ token, @CORSProxy })
+Spreadsheet = (config) ->
+  oauth2rizer(config)().then (token) ->
+    sheets = GoogleSheets({ token })
     load   = loadSpreadsheet(sheets)
     choose = chooseSpreadsheet(sheets)
     create = createSpreadsheet(sheets)

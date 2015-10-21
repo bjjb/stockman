@@ -15,7 +15,7 @@
 #   alert("Something went awry! Check the logs.")
 # }
 # auth().then(makeAPICall).catch(reportError)
-@oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
+oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
                   scopes, scope, state, response_type, access_type, start,
                   refresh, exchange, redirect, remember, forget, post,
                   location, localStorage, sessionStorage, Promise,
@@ -97,4 +97,11 @@
       return exchange(code).then(remember).then(resolve) if state is _state
       # 4 - None of the above,
       start()
+
+middleware = (req, res, next) ->
+  # server side...
+  console.log "OAUTH2RIZER"
+  res.end("Boo!")
+@oauth2rizer = oauth2rizer
+module.exports.middleware = middleware if module?.exports?
 # TODO Extract to a standalone package, and make it work with other endpoints.
