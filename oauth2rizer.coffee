@@ -61,7 +61,7 @@
     expires_at = expires_at.getTime()
     { host } = location
     localStorage.host = host
-    localStorage.refresh_token = refresh_token
+    localStorage.refresh_token = refresh_token if refresh_token?
     sessionStorage.host = host
     sessionStorage.token_type = token_type
     sessionStorage.expires_at = expires_at

@@ -1,5 +1,27 @@
+main>section
+  display none
+  &:target
+    display inherit
+
 h1 > small
   margin-left 1em
 
 tr
   vertical-align middle
+
+[hidden]
+  display none !important
+
+.glyphicon-spin
+  animation: spin 1s infinite linear;
+
+@-webkit-keyframes spin
+  0%
+    transform rotate(0deg);
+  100%
+    transform rotate(359deg);
+@keyframes spin
+    transform rotate(0deg);
+  100%
+    transform rotate(359deg);
+

@@ -1,0 +1,14 @@
+.panel.order(class="{{context}}")
+  .panel-header
+    h4.panel-title
+      a(data-toggle="collapse" href="{{domID}}") {{customer}}
+  .panel-collapse.collapse(id="{{domID}}")
+    .panel-body
+      table.table.order-items
+        tbody
+          | {{#items}}
+          tr(id="{{domID}}")
+            td.product {{product}}
+            td.quantity {{quantity}}
+            td.actions {{actions}}
+          | {{/items}}

@@ -1,27 +1,6 @@
 console.log "Welcome to Stockman"
 VERSION = 1
 
-OAuth2 =
-  Google:
-    client_id: "882209763081-417l7db84s429rg541idqin8gm0arham.apps.googleusercontent.com",
-    auth_uri: "https://accounts.google.com/o/oauth2/auth",
-    token_uri: "https://www.googleapis.com/oauth2/v3/token"
-    client_secret: "WMJoSo1W-awHOG6lsQR3BVxf",
-    scopes: [ 'https://spreadsheets.google.com/feeds' ]
-
-SS = ->
-  auth().then (token) ->
-    sheets = GoogleSpreadsheets({ token })
-    orders: []
-    inventory: []
-    products: []
-
-DB = ->
-  open('stockman').then ->
-    orders: []
-    inventory: []
-    products: []
-
 ordersLinkClicked = (event) ->
 inventoryLinkClicked = (event) ->
 refreshLinkClicked = (event) ->
@@ -102,60 +81,12 @@ filterMarketDayOrders = ($event) ->
 
 saveProduct = (product) ->
   new Promise (resolve, reject) ->
-    openDB.then (db) ->
+    openDB().then (db) ->
       transaction = db.transaction('inventory', 'readwrite')
         .objectStore('products')
         .add(product)
       transaction.onsuccess = resolve
       transaction.onerror = reject
-
-# = jQuery plugins
-
-# Inserts products and applies behaviour to the jQueries
-$.fn.products = (products) ->
-  productTemplate = $("#product-template").html()
-  render = (product) ->
-    Mustache.render(productTemplate, new Product(product))
-  renderAll = (products) ->
-    products.map(render).join("\n")
-  newProduct = ->
-    $('#new-product-modal').modal()
-  createProduct = ->
-    console.debug "createProduct"
-    product = $("#new-product-name").val()
-    price = Number($("#new-product-price").val())
-    units = $("#new-product-units").val() or "-"
-    type = $("#new-product-type").val()
-    product = new Product({ type, product, price, units })
-    openDB.then (db) ->
-      transaction = db.transaction('products', 'readwrite')
-      transaction.oncomplete = (event) ->
-        $('#new-product-form').find('input', 'textarea', 'select').val('')
-        $('#products tbody').append(render(product))
-        $('#new-product-modal').modal('hide')
-      transaction.onfailure = (event) ->
-        console.error event
-        alert("Failed to save product")
-      objectStore = transaction.objectStore('products')
-      request = objectStore.add(product)
-      request.onsuccess = -> console.debug "Added product", product
-  editProduct = ->
-    console.debug "editProduct"
-  updateProduct = ->
-    console.debug "updateProduct"
-  deleteProduct = ->
-    console.debug "deleteProduct"
-  setNewProductUnits = ->
-    $('#new-product-units').val($(@).html()[1..-1])
-    $('#new-product-form span.units').html($(@).html())
-  Promise.resolve(products?() or products).then (products) =>
-    $('tbody', @).html -> products.map(render).join("\n")
-    $('button.new-product').on 'click', newProduct
-    $('#new-product-form a.unit').on 'click', setNewProductUnits
-    $('#new-product-form').on 'submit', createProduct
-    $('button.edit-product').on 'click', editProduct
-    $('form.update-product').on 'submit', updateProduct
-    $('button.delete-product').on 'click', deleteProduct
 
 class Product
   @html = (product, template = "#product-template") ->
@@ -248,38 +179,39 @@ fetchRemoteData = ->
     .then (orders) -> data.orders = orders
     .then -> data
 
-openDB = new Promise (resolve, reject) ->
-  fetchRemoteData().then (remoteData) ->
-    op = indexedDB.open('stockman', VERSION)
-    op.onsuccess = (event) ->
-      console.debug "openDB SUCCESS"
-      resolve(event.target.result)
-    op.onerror = (event) ->
-      console.debug "openDB ERROR"
-      reject(event)
-    op.onupgradeneeded = (event) ->
-      console.debug "openDB UPGRADE NEEDED", event
-      db = event.target.result
-      db.createObjectStore('products', keyPath: 'product')
-      db.createObjectStore('inventory', keyPath: 'product')
-      db.createObjectStore('orders', keyPath: 'id')
-      request = db.createObjectStore('types', keyPath: 'type')
-      request.transaction.oncomplete = ->
-        transaction = db.transaction(['products', 'orders', 'inventory', 'types'], 'readwrite')
-        store = transaction.objectStore('products')
-        store.add product for product in remoteData.products
-        store = transaction.objectStore('inventory')
-        store.add entry for entry in remoteData.inventory
-        store = transaction.objectStore('orders')
-        store.add order for order in remoteData.orders
-        store = transaction.objectStore('types')
-        store.add type for type in remoteData.types
-        Product.types = types
+openDB = ->
+  new Promise (resolve, reject) ->
+    fetchRemoteData().then (remoteData) ->
+      op = indexedDB.open('stockman', VERSION)
+      op.onsuccess = (event) ->
+        console.debug "openDB SUCCESS"
+        resolve(event.target.result)
+      op.onerror = (event) ->
+        console.debug "openDB ERROR"
+        reject(event)
+      op.onupgradeneeded = (event) ->
+        console.debug "openDB UPGRADE NEEDED", event
+        db = event.target.result
+        db.createObjectStore('products', keyPath: 'product')
+        db.createObjectStore('inventory', keyPath: 'product')
+        db.createObjectStore('orders', keyPath: 'id')
+        request = db.createObjectStore('types', keyPath: 'type')
+        request.transaction.oncomplete = ->
+          transaction = db.transaction(['products', 'orders', 'inventory', 'types'], 'readwrite')
+          store = transaction.objectStore('products')
+          store.add product for product in remoteData.products
+          store = transaction.objectStore('inventory')
+          store.add entry for entry in remoteData.inventory
+          store = transaction.objectStore('orders')
+          store.add order for order in remoteData.orders
+          store = transaction.objectStore('types')
+          store.add type for type in remoteData.types
+          Product.types = types
 
 allProducts = ->
   new Promise (resolve, reject) ->
     products = []
-    openDB.then (db) ->
+    openDB().then (db) ->
       op = db.transaction('products').objectStore('products').openCursor()
       op.onsuccess = (event) ->
         cursor = event.target.result
@@ -288,14 +220,21 @@ allProducts = ->
         cursor.continue()
       op.onerror = reject
 
-sync = (ss, db) ->
-  SS().then console.log.bind(console)
-  return SS((ss) -> DB((db) -> sync(ss, db))) unless ss and db
+CREDENTIALS =
+  client_id: "882209763081-417l7db84s429rg541idqin8gm0arham.apps.googleusercontent.com",
+  auth_uri: "https://accounts.google.com/o/oauth2/auth",
+  token_uri: "https://www.googleapis.com/oauth2/v3/token"
+  client_secret: "WMJoSo1W-awHOG6lsQR3BVxf",
+  scopes: [ 'https://spreadsheets.google.com/feeds' ]
 
-render = (data) ->
-  console.log "RENDER", @
+{ Spreadsheet, Database } = @stockman
+sync = ->
+  return Spreadsheet(CREDENTIALS).then (s) ->
+    Database().then (d) ->
+      console.log "Synchronizing", s, d
 
-# Synchronize data and render the page with that data
-load = -> sync().then(render)
-
-@addEventListener 'load', load
+@addEventListener 'load', ->
+  showLoader = -> e.hidden = false for e in @document.querySelectorAll('.loader')
+  hideLoader = -> e.hidden = true  for e in @document.querySelectorAll('.loader')
+  renderProducts = -> sync().then(render('#products'))
+  Promise.all [showLoader(), renderProducts(), renderInventory(), renderOrders(), hideLoader()]

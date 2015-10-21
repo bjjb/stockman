@@ -4,6 +4,7 @@ credentials.json
 *.js
 *.css
 *.*.map
-public/components
+components
+#public/components
 .divshot-cache
 .*.sw?

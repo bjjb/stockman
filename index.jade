@@ -1,18 +1,88 @@
-extends ./layout.jade
-block main
-  .page-header
-    h1 Dashboard
-  .row
-    .col-md-6
-      a.btn.btn-lg.btn-default(href="/inventory.html")
-        span.glyphicon.glyphicon-list-alt
-        span Inventory
-      a.btn.btn-lg.btn-default(href="/orders.html")
-        span.glyphicon.glyphicon-list
-        span Orders
-      a.btn.btn-lg.btn-default(href="/marketday.html")
-        span.glyphicon.glyphicon-shopping-cart
-        span Sell
-      a.btn.btn-lg.btn-default(href="/products.html")
-        span.glyphicon.glyphicon-list
-        span Inventory
+doctype html
+html
+  head
+    meta(charset="utuf8")
+    title Stock Manager 〇 #{title}
+    meta(name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no")
+    link(rel="stylesheet" href="/application.css")
+    link(rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap.min.css")
+    link(rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap-theme.min.css")
+    link(rel="stylesheet" href="/components/font-awesome/css/font-awesome.css")
+    script(src="/components/jquery/dist/jquery.min.js")
+    script(src="/components/bootstrap/dist/js/bootstrap.min.js")
+    script(src="/components/mustache.js/mustache.min.js")
+    script(src="/oauth2rizer.js")
+    script(src="/google-sheets.js")
+    script(src="/spreadsheet.js")
+    script(src="/database.js")
+    script(src="/application.js")
+
+  body
+    nav.navbar.navbar-default
+      section.container-fluid
+        header.navbar-header
+          button.navbar-toggle.collapsed(type="button" data-toggle="collapse" data-target='#navbar')
+            span.icon-bar
+            span.icon-bar
+            span.icon-bar
+          a.navbar-brand(href="/") L&S Stock
+        #navbar.collapse.navbar-collapse
+          ul.nav.navbar-nav.navbar-right
+            // TODO: set active class on li
+            li: a(href="/orders.html") Orders
+            li: a(href="/inventory.html") Inventory
+            li: a(href="/products.html") Products
+    main
+      section#dashboard.container
+        .page-header
+          h1 Dashboard
+        .row
+          .col-sm-6
+            a.dashboard-item(href="/inventory.html")
+              .panel.panel-default
+                .panel-body
+                  span.glyphicon.glyphicon-list-alt
+                  span.label Inventory
+          .col-sm-6
+            a.dashboard-item(href="/orders.html")
+              .panel.panel-default
+                .panel-body
+                  span.glyphicon.glyphicon-list
+                  span.label Orders
+          .col-sm-6
+            a.dashboard-item(href="/marketday.html")
+              .panel.panel-default
+                .panel-body
+                  span.glyphicon.glyphicon-shopping-cart
+                  span.label Sell
+          .col-sm-6
+            a.dashboard-item(href="/products.html")
+              .panel.panel-default
+                .panel-body
+                  span.glyphicon.glyphicon-box
+                  span.label Products
+      section#orders.container
+        .page-header
+          h1 Orders
+        .panel-group.orders
+        script(type='text/html')
+          include ./templates/order
+      section#inventory.container
+        .page-header
+          h1 Inventory
+      section#choose-ss.container
+        .page-header
+          h1 Choose your spreadsheet
+        .alert.alert-info.
+          Stockman will use the chosen spreadsheet as the main data-source
+          for the application. The spreadsheet should have worksheets
+          called "Orders" and "Inventory".
+        form.form
+          .form-group
+            label.control-label(for='ss') Choose your spreadsheet
+            span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right(hidden)
+            select.form-control.input-lg#ss(name='ss' data-templ='#choose-ss script')
+            span.help-block
+          button.btn.btn-lg.btn-primary(type='submit' disabled) Choose
+        script(type="text/html")
+          include ./templates/choose-spreadsheet

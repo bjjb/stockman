@@ -4,7 +4,8 @@
   "description": "A HTML5 stock and order manager, backed by Google Drive",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "./node_modules/.bin/mocha",
+    "start": "./node_modules/.bin/coffee server.coffee"
   },
   "repository": {
     "type": "git",
@@ -18,10 +19,14 @@
   ],
   "author": "bjjb",
   "license": "ISC",
+  "dependencies": {
+    "express": "^4.13.3",
+    "googleapis": "^2.1.5",
+    "morgan": "^1.6.1"
+  },
   "devDependencies": {
     "bower": "^1.5.3",
     "coffee-script": "^1.10.0",
-    "express": "^4.13.3",
     "jade": "^1.11.0",
     "mocha": "^2.3.3",
     "stylus": "^0.52.4"
