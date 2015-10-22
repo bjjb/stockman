@@ -2,20 +2,6 @@ log = (level) -> (x) -> (console[level](x); x)
 
 get = (sheets) -> (id) -> sheets.get(id)
 
-render = (q) ->
-  (view) ->
-    element = @document.querySelector(q)
-    { templ } = element.dataset
-    if templ?
-      template = @document.querySelector(templ)?.innerHTML
-      if template?
-        element.innerHTML = Mustache.render(template, view)
-      else
-        console.warn("Template not found:", template)
-    else
-      console.warn("Element has no data-template, skipping:", e)
-    element
-
 # Attempts to load the spreadsheet 'id'.
 loadSpreadsheet = (sheets) ->
   (id) ->
@@ -88,5 +74,7 @@ Spreadsheet = (config) ->
     return sheets.get(spreadsheet).then(load) if spreadsheet?
     load(spreadsheet).catch(choose).catch(create)
 
-@stockman ?= {}
+
+
+@stockman ?= { render }
 @stockman.Spreadsheet = Spreadsheet

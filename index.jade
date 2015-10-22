@@ -13,8 +13,6 @@ html
     script(src="/components/mustache.js/mustache.min.js")
     script(src="/oauth2rizer.js")
     script(src="/google-sheets.js")
-    script(src="/spreadsheet.js")
-    script(src="/database.js")
     script(src="/application.js")
     script(type="text/json")
       include ./google-web-service-credentials.json
@@ -35,6 +33,18 @@ html
             li: a(href="/inventory.html") Inventory
             li: a(href="/products.html") Products
     main
+      .container.alerts
+        .fatal.alert.alert-danger(hidden)
+          p
+            span.message
+        .offline.alert.alert-warning(hidden)
+          p
+            span.message Currently offline
+            span.glyphicon.glyphicon-warning-sign.pull-right
+        .synchronizing.alert.alert-info(hidden)
+          p
+            span.message
+            span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
       section#dashboard.container
         .page-header
           h1 Dashboard
@@ -75,16 +85,12 @@ html
       section#choose-ss.container
         .page-header
           h1 Choose your spreadsheet
-        .alert.alert-info.
-          Stockman will use the chosen spreadsheet as the main data-source
-          for the application. The spreadsheet should have worksheets
-          called "Orders" and "Inventory".
         form.form
           .form-group
             label.control-label(for='ss') Choose your spreadsheet
             span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right(hidden)
-            select.form-control.input-lg#ss(name='ss' data-templ='#choose-ss script')
+            select.form-control.input-lg#ss(disabled name='ss' data-template='#choose-ss script')
             span.help-block
-          button.btn.btn-lg.btn-primary(type='submit' disabled) Choose
+          button.btn.btn-lg.btn-primary.pull-right(type='submit' disabled) Choose
         script(type="text/html")
           include ./templates/choose-spreadsheet

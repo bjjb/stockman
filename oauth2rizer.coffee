@@ -86,7 +86,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
   ->
     new Promise (resolve, reject) ->
       # 1 - we have a valid access token
-      { access_token, token_type, expires_at, host }  = sessionStorage
+      { access_token, token_type, expires_at, host } = sessionStorage
       return resolve(access_token) if host is location.host and access_token? and expires_at > new Date().getTime()
       # 2 - we have a valid refresh token
       { refresh_token, host } = localStorage
@@ -98,10 +98,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
       # 4 - None of the above,
       start()
 
-middleware = (req, res, next) ->
-  # server side...
-  console.log "OAUTH2RIZER"
-  res.end("Boo!")
-@oauth2rizer = oauth2rizer
-module.exports.middleware = middleware if module?.exports?
-# TODO Extract to a standalone package, and make it work with other endpoints.
+if module? and module.exports? and require?
+  module.exports = oauth2rizer
+else
+  @oauth2rizer = oauth2rizer
