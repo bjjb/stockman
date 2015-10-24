@@ -1,5 +1,5 @@
 server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
-  port        ?= process.env.PORT or 3474
+  port        ?= process.env.PORT or 8088
   logLevel    ?= if process.env.NODE_ENV is 'dev' then 'dev' else 'tiny'
   staticDirs  ?= [ 'public' ]
   middlewares ?= [
@@ -14,7 +14,7 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
   app.use express.static(d) for d in staticDirs
   app.use(middleware...) for middleware in middlewares
 
-  app.listen port or process.env.PORT or 3000, ->
+  app.listen port or process.env.PORT or 8088, ->
     { address, port } = @address()
     { name, version } = require './package'
     console.log "#{name} v#{version} listening on #{address}:#{port}"

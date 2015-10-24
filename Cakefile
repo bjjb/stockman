@@ -2,7 +2,7 @@ SRC  = '.'
 DIST = 'public'
 
 log = (x) ->
-  console.log(x) if x?.trim()
+  console.log(x.trim()) if x?.trim()
 ls = (d) ->
   new Promise (resolve, reject) ->
     require('fs').readdir d, (error, entries) ->
@@ -35,7 +35,11 @@ exec = (cmd) ->
     p.stderr.on 'data', log
     p.on 'exit', resolve
     p.on 'error', reject
-dist   = -> mkdir(DIST)
+copy = (files...) ->
+  (d = 'DIST') ->
+    { createReadStream, createWriteStream } = require 'fs'
+    createReadStream("#{SRC}/#{f}").pipe(createWriteStream("#{d}/#{f}")) for f in files
+dist   = -> mkdir(DIST).then(copy('favicon.ico', 'xml2json.js'))
 html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
 css    = -> exec "stylus -o #{DIST} -m  #{SRC}/*.styl"
 js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
@@ -45,7 +49,7 @@ watch.html   = -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
 watch.css    = -> exec "stylus -w -o #{DIST} -m  #{SRC}/*.styl"
 watch.js     = -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
 server  = -> build().then Promise.race([watch(), serve()])
-serve = -> require('./server')(staticDirs: ['public'], port: 3474, logLevel: 'dev')
+serve = -> require('./server')(staticDirs: ['public'], port: 8088, logLevel: 'dev')
 
 task "build",  "compile the site",              build
 task "watch",  "watch for changes and compile", watch

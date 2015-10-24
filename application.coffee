@@ -1,6 +1,10 @@
 "use strict"
 
 VERSION = 1
+WORKSHEETSFEED = "http://schemas.google.com/spreadsheets/2006#worksheetsfeed"
+CELLSFEED      = "http://schemas.google.com/spreadsheets/2006#cellsfeed"
+LISTFEED       = "http://schemas.google.com/spreadsheets/2006#listfeed"
+
 ajax =
   handle: (handlers = {}) -> (e) -> handlers[@status]?(e)
   request: ({ method, url, headers, data, handlers }) ->
@@ -13,154 +17,134 @@ ajax =
       xhr.addHeader(k, v) for own k, v of headers
       xhr.addEventListener(k, v) for own k, v of handlers
       xhr.send(data)
+  post: (url) ->
+    load = -> JSON.parse(@responseText)
+    (data) ->
+      request('post', url, { Authorization: "Bearer: #{token}" }, data, { load })
 
 rejolve = (x) -> Promise[x? and 'resolve' or 'reject'](x)
 urlencode = (o) -> ([k, v].map(encodeURIComponent).join('=') for own k, v of o).join('&')
 taskChain = (tasks) -> tasks.reduce ((p, t) -> p.then(t)), Promise.resolve()
-utils = { rejolve, urlencode, ajax, taskChain }
-
-saveProduct = (product) ->
-  new Promise (resolve, reject) ->
-    openDB().then (db) ->
-      transaction = db.transaction('inventory', 'readwrite')
-        .objectStore('products')
-        .add(product)
-      transaction.onsuccess = resolve
-      transaction.onerror = reject
-
-Product = ({ @product, @total, @held, @open, @available, @comment, @price, @units }) ->
-
-Order = ({ @id, @customer, @items, @comment, @total, @status, @placedOn, @holdUntil, @location }) ->
-
-OrderItem = ({ @product, @quantity, @comment, @status, @weight, @price }) ->
-
-DUMMUDATA =
-  inventory: [
-    { product: 'Ham Hock', quantity: 4, price: 6.75 },
-    { product: 'SCC', quantity: 11, price: 5.50 },
-    { product: 'Whole Chicken', quantity: 5, price: 7.5 }
-  ]
-  orders: [
-    { id: 1, customer: "Adam Anderson", items: [ { product: 'Ham Hock', quantity: 2 }, { product: 'SCC', quantity: 4 } ], comment: 'Has coffee' }
-    { id: 2, customer: "Bob Belcher",   items: [ { product: 'Whole Chicken', quantity: 1, comment: 'Biggest available' } ] }
-  ]
+arrayify = (obj) -> x for x in obj # !!arrayify(arguments) instanceof Array //=> true
+serializeXML = (xml) -> xml.documentElement.innerHTML
+deserializeXML = (s,t) -> x = document.createElement(t ? 'feed'); x.innerHTML = s; x
+apply = (f) -> (a...) -> (o) -> o[f](a...) # apply('toLowerCase')()("BOO!") //=> "boo!" 
+utils = { rejolve, urlencode, ajax, taskChain, arrayify, serializeXML, deserializeXML }
 
 CREDENTIALS =
-  client_id: "882209763081-417l7db84s429rg541idqin8gm0arham.apps.googleusercontent.com",
-  client_secret: "WMJoSo1W-awHOG6lsQR3BVxf",
+  client_id: "882209763081-p97bm2pb8egcmsttkkssceda5mqqsnkg.apps.googleusercontent.com",
+  client_secret: "5YDG6-ezoZv04_8SXkjcrizf",
   auth_uri: "https://accounts.google.com/o/oauth2/auth",
   token_uri: "https://www.googleapis.com/oauth2/v3/token"
   scopes: [ 'https://spreadsheets.google.com/feeds' ]
-  redirect_uri: "#{location.protocol}//#{location.host}/oath2"
+  redirect_uri: "#{location.protocol}//#{location.host}"
 
-Inventory = (backend) ->
-  clear = -> backend.clear('inventory')
-  replace = (source) ->
-    clear().then(source.all).then (objects) ->
-      objects.reduce ((p, object) -> p.then(-> insert(object))), Promise.resolve()
-  all = ->
-    backend.objects('inventory').then (products) ->
-      products.map (product) ->
-        console.debug "new Product", product
-        new Product(product)
-  { replace, all }
+Debugger = (prefix = "DEBUG") ->
+  owner = @
+  (args...) ->
+    message = args.join(" ")
+    console.debug(Error("#{prefix}: #{message}"), "this:", @)
 
-Orders = (backend) ->
-  clear = -> backend.clear('orders')
-  replace = (source) ->
-    clear().then(source.all).then (objects) ->
-      objects.reduce ((p, object) -> p.then(-> insert(object))), Promise.resolve()
-  all = ->
-    backend.objects('orders').then (orderItems) ->
-      orderItems.map (orderItem) ->
-        console.debug "new OrderItem", orderItem
-        new OrderItem(orderItem)
-  { replace, all }
+Inventory = (ss, db) ->
+  sync = ->
+    throw "SYNC INVENTORY"
+  { sync }
+
+Orders = (ss, db) ->
+  debug = Debugger("Orders:")
+  sync = ->
+    debug("sync...")
+    db.replace('orders', ss.orders())
+  { sync }
 
 # SpreadSheet interface
 SS = (ui) ->
-  Document = (doc) ->
-    entries = -> doc.querySelectorAll('entry')
-    links   = -> doc.querySelectorAll('link')
-    worksheetsfeed = -> links.w
-    { worksheetsfeed }
+  debug = Debugger("SS:")
   auth = oauth2rizer(CREDENTIALS)
   googleSheets = ->
     rewrite = (url) -> "/google-sheets/#{url}"
-    auth().then (token) -> GoogleSheets({ token, rewrite })
+    auth().then (token) ->
+      GoogleSheets({ token, rewrite })
+  script = (id) ->
+    body = JSON.stringify({ function: 'getOrders', parameters: [], devMode: true })
+    ajax.post("https://script.googleapis/v1/scripts/#{id}:run")(script).then ->
+      console.log response
+  spreadsheet = ->
+    debug("spreadsheet()")
+    return Promise.resolve(sessionStorage.spreadsheet) if sessionStorage.spreadsheet?
+    return get(localStorage.spreadsheet) if localStorage.spreadsheet?
+    chooseSS().then(get)
+  worksheets = ->
+    debug("worksheets()")
+    spreadsheet().then(getWorksheetsURL).then(get).then (worksheets) ->
+      results = for e in worksheets.querySelectorAll('entry')
+        id: e.querySelector('id').innerHTML
+        title: e.querySelector('title').innerHTML
+        cells: e.querySelector("link[rel='#{CELLSFEED}']").getAttribute('href')
+        list: e.querySelector("link[rel='#{LISTFEED}']").getAttribute('href')
+      results.reduce(((m, o) -> m[o.title] = o; m), {})
+  worksheet = (name) ->
+    debug("worksheet(#{name})")
+    return get(localStorage[name]) if localStorage[name]?
+    worksheets().then (worksheets) ->
+      get(worksheets[name].cells).then (feed) ->
+        console.debug "Got the cells! Now what?!", feed
+        Promise.reject "OK"
+  parse = (xml) ->
+    console.debug("Parsing XML", xml)
+    result = xml2json.xml_to_object(xml.innerHTML)
+    console.debug(result)
+    result
+  orders = ->
+    worksheet('ORDERS').then(parse).then (rows) ->
+      new Order(row) for row in rows
+  spreadsheets = ->
+    index().then (doc) ->
+      for entry in doc.querySelectorAll('entry')
+        title: entry.querySelector('title').innerHTML
+        id: entry.querySelector('id').innerHTML
+  cache = (key, f) ->
+    if sessionStorage[key]?
+      Promise.resolve(deserializeXML(sessionStorage[key]))
+    else
+      f().then (xml) ->
+        sessionStorage[key] = serializeXML(xml)
+        xml
   index = ->
-    googleSheets().then (googleSheets) ->
-      googleSheets.index().then (doc) ->
-        results = []
-        for entry in doc.querySelectorAll('entry')
-          results.push
-            title: entry.querySelector('title').innerHTML
-            id: entry.querySelector('id').innerHTML
-        results
+    cache 'spreadsheets', -> googleSheets().then(apply('index')(projection: 'basic'))
   get = (id) ->
     throw "Invalid ID: #{id}" unless typeof id is 'string'
-    googleSheets().then (googleSheets) ->
-      googleSheets.get(id)
-  choose = -> # triggers the choose spreadsheet flow
-    ui.$('#choose-ss .help-block').innerHTML = "Stockman is loading a list of your spreadsheets"
-    ui.disable('#choose-ss select')
-    ui.show('#choose-ss .spinner')
-    ui.goto('#choose-ss')
-    index().then(chooseSS)
-  parseData = (doc) ->
-    console.debug "WORKING HERE", doc
+    cache id, -> googleSheets().then(apply('get')(id))
+  chooseSS = ->
+    debug("chooseSS()")
+    ui.chooseSS(spreadsheets, checkSpreadsheet).then (spreadsheet) ->
+      localStorage.spreadsheet = spreadsheet
+  getCellsFeedURL = (worksheet) ->
+    Promise.resolve(spreadsheet.querySelector("link[rel='#{CELLSFEED}']").getAttribute('href'))
+  getListFeedURL = (worksheet) ->
+    Promise.resolve(spreadsheet.querySelector("link[rel='#{LISTFEED}']").getAttribute('href'))
+  getWorksheetsURL = (spreadsheet) ->
+    Promise.resolve(spreadsheet.querySelector("link[rel='#{WORKSHEETSFEED}']").getAttribute('href'))
+  checkWorksheets = (worksheets) ->
+    new Promise (resolve, reject) ->
+      results = []
+      for e in worksheets.querySelectorAll('entry')
+        results.push
+          id: e.querySelector('id').innerHTML
+          title: e.querySelector('title').innerHTML
+          links: for link in e.querySelectorAll('link')
+            rel: link.getAttribute('rel')
+            href: link.getAttribute('href')
+      titles = (w.title for w in results)
+      console.log "All titles: #{titles}"
+      return reject() unless 'ORDERS' in titles and 'INVENTORY' in titles
+      resolve(results)
+  checkSpreadsheet = (id) ->
+    get(id).then(getWorksheetsURL).then(get).then(checkWorksheets)
+  parse = (doc) ->
     Promise.reject "Parse data is not implemented"
   objects = (worksheet) ->
-    console.debug "Getting all objects on #{worksheet}"
-    Promise.reject("Not done")
-  chooseSS = (options) -> # called with the spreadsheets [ { id, title } ]
-    new Promise (resolve, reject) ->
-      changed = (e) ->
-        ui.disable('#choose-ss button[type=submit]')
-        check = (spreadsheet_url) => # check the spreadsheet with this ID
-          get(spreadsheet_url).then (doc) -> # get the XML
-            worksheets_url = doc.querySelector('link[rel="http://schemas.google.com/spreadsheets/2006#worksheetsfeed"]').getAttribute('href')
-            get(worksheets_url).then (doc) -> # get the worksheets feed
-              title = doc.querySelector('title').innerHTML
-              titles = (e.innerHTML.toLowerCase() for e in doc.querySelectorAll('entry title'))
-              return Promise.reject(title) unless 'inventory' in titles and 'orders' in titles
-              results = { spreadsheet: spreadsheet_url, worksheets: worksheets_url }
-              for e in doc.querySelectorAll('entry')
-                if (title = e.querySelector('title').innerHTML.toLowerCase) in ['inventory', 'orders']
-                  results[title] = e.querySelector('id').innerHTML
-              Promise.resolve(results) # resolves to [{id, title}] of worksheets
-        valid = (values) =>
-          select = @
-          done = ->
-            event.preventDefault()
-            select.removeEventListener 'change', changed
-            @removeEventListener 'submit', done
-            localStorage[k] = v for own k, v of values
-            resolve(localStorage.spreadsheet) # DONE!
-          ui.enable('#choose-ss select')
-          ui.hide('#choose-ss .spinner')
-          ui.$('#choose-ss .form-group').classList.remove('has-error')
-          ui.$('#choose-ss .form-group').classList.add('has-success')
-          ui.$('#choose-ss .help-block').innerHTML = "... is a valid stockman spreadsheet!"
-          ui.$('#choose-ss form').addEventListener 'submit', done
-          ui.enable('#choose-ss button[type=submit]')
-        invalid = (title) =>
-          ui.enable('#choose-ss select')
-          ui.hide('#choose-ss .spinner')
-          ui.$('#choose-ss .form-group').classList.remove('has-success')
-          ui.$('#choose-ss .form-group').classList.add('has-error')
-          ui.$('#choose-ss .help-block').innerHTML = "<em>#{title}</em> is not a valid stockman spreadsheet"
-        ui.disable('#choose-ss select')
-        ui.show('#choose-ss .spinner')
-        ui.$('#choose-ss .help-block').innerHTML = "Checking..."
-        check(@value).then valid, invalid
-      ui.render('#choose-ss select')(spreadsheets: options)
-      ui.$('#choose-ss select').addEventListener 'change', changed
-      ui.$('#choose-ss .help-block').innerHTML = "Choose a spreadsheet with INVENTORY and ORDERS"
-      ui.hide('#choose-ss .spinner')
-      ui.enable('#choose-ss select')
-  inventory = Inventory({ objects })
-  orders    = Orders({ objects })
+    getSheet(worksheet).then(parse)
   { inventory, orders }
 
 # DataBase interface
@@ -203,9 +187,9 @@ DB = (ui, ss) ->
   { orders, inventory, clear }
 
 UI = ->
-  $       = (q) => @document.querySelector(q)
-  $$      = (q) => e for e in @document.querySelectorAll(q)
-  goto    = (q) => @location.hash = q
+  $       = (q) => document.querySelector(q)
+  $$      = (q) => e for e in document.querySelectorAll(q)
+  goto    = (q) => location.hash = q
   show    = (q) -> e.hidden = false for e in $$(q)
   hide    = (q) -> e.hidden = true for e in $$(q)
   enable  = (q) -> e.disabled = false for e in $$(q)
@@ -217,37 +201,95 @@ UI = ->
         return console.error("No template", e) unless t = e.dataset.template
         return console.error("Template missing", t) unless t = $(t)?.innerHTML
         e.innerHTML = Mustache.render(t, view, partials)
-  {$, $$, goto, show, hide, enable, disable, render }
-
-Stockman = (event) ->
-  ui = UI.call(@)
-  ss = SS.call(@, ui)
-  db = DB.call(@, ui, ss)
-  changes =
-    push: -> Promise.reject("changes.push not implemented")
-  sync = ->
+  debug = Debugger("UI:")
+  listen = (q) -> (event) -> (callback) -> $(q).addEventListener event, callback
+  ignore = (q) -> (event) -> (callback) -> $(q).removeEventListener event, callback
+  fatal = ->
+    $('.fatal.alert .message').innerHTML = error.message
+    show('.fatal.alert')
+  sync = (f) ->
     success = ->
-      ui.$('.alert.synchronizing .message').innerHTML = 'Synchronized!'
-      ui.hide('.alert.synchronizing .spinner')
-      ui.$('.alert.synchronizing').classList.remove('alert-info')
-      ui.$('.alert.synchronizing').classList.add('alert-success')
-      setTimeout (-> ui.hide('.alert.synchronizing')), 5000
+      $('.alert.synchronizing .message').innerHTML = 'Synchronized!'
+      hide('.alert.synchronizing .spinner')
+      $('.alert.synchronizing').classList.remove('alert-info')
+      $('.alert.synchronizing').classList.add('alert-success')
+      setTimeout (-> hide('.alert.synchronizing')), 5000
     error = (error) ->
-      console.error(error)
-      ui.$('.alert.synchronizing .message').innerHTML = "Failed to synchronize!<br>#{error}"
-      ui.hide('.alert.synchronizing .spinner')
-      ui.$('.alert.synchronizing').classList.remove('alert-info')
-      ui.$('.alert.synchronizing').classList.add('alert-danger')
+      $('.alert.synchronizing .message').innerHTML = "Failed to synchronize!<br>#{error}"
+      hide('.alert.synchronizing .spinner')
+      $('.alert.synchronizing').classList.remove('alert-info')
+      $('.alert.synchronizing').classList.add('alert-danger')
       setTimeout (-> ui.hide('.alert.synchronizing')), 5000
-    ui.$('.alert.synchronizing .message').innerHTML = 'Synchronizing...'
-    ui.show('.alert.synchronizing .spinner')
-    ui.$('.alert.synchronizing').classList.add('alert-info')
-    ui.$('.alert.synchronizing').classList.remove('alert-success')
-    ui.$('.alert.synchronizing').classList.remove('alert-danger')
-    ui.show('.alert.synchronizing')
-    utils.taskChain([ db.orders.replace(ss.orders), db.inventory.replace(ss.inventory) ])
-      .then -> changes.push(ss)
-      .then(success).catch(error)
+      throw error
+    $('.alert.synchronizing .message').innerHTML = 'Synchronizing...'
+    show('.alert.synchronizing .spinner')
+    $('.alert.synchronizing').classList.add('alert-info')
+    $('.alert.synchronizing').classList.remove('alert-success')
+    $('.alert.synchronizing').classList.remove('alert-danger')
+    show('.alert.synchronizing')
+    f().then(success, error)
+  chooseSS = (spreadsheets, check) ->
+    new Promise (resolve) ->
+      init = ->
+        debug("chooseSS.init")
+        disable('#choose-ss select')
+        $('#choose-ss .help-block').innerHTML = "Stockman is loading a list of your spreadsheets"
+        show('#choose-ss .spinner')
+        goto('#choose-ss')
+        listen('#choose-ss select')('change')(change)
+        listen('#choose-ss form')('submit')(submit)
+      start = (options) ->
+        text = "Choose a spreadsheets with INVENTORY and ORDERS"
+        render('#choose-ss select')(spreadsheets: options)
+        $('#choose-ss .help-block').innerHTML = text
+        hide('#choose-ss .spinner')
+        enable('#choose-ss select')
+      change = (event) ->
+        disable('#choose-ss select')
+        show('#choose-ss .spinner')
+        $('#choose-ss .form-group').classList.remove('has-success')
+        $('#choose-ss .form-group').classList.remove('has-error')
+        $('#choose-ss .help-block').innerHTML = "Checking..."
+        check(@value).then(valid, invalid)
+      valid = ->
+        text = "... is a valid stockman spreadsheet!"
+        $('#choose-ss .form-group').classList.remove('has-error')
+        $('#choose-ss .form-group').classList.add('has-success')
+        $('#choose-ss .help-block').innerHTML = text
+        hide('#choose-ss .spinner')
+        enable('#choose-ss select')
+        enable('#choose-ss button[type=submit]')
+      invalid = ->
+        text = "... is <strong>not</strong> a valid stockman spreadsheet."
+        disable('#choose-ss button[type=submit]')
+        enable('#choose-ss select')
+        hide('#choose-ss .spinner')
+        $('#choose-ss .form-group').classList.remove('has-success')
+        $('#choose-ss .form-group').classList.add('has-error')
+        $('#choose-ss .help-block').innerHTML = text
+      submit = (event) ->
+        event.preventDefault()
+        ignore('#choose-ss form')('submit')(submit)
+        ignore('#choose-ss select')('change')(change)
+        disable('#choose-ss select')
+        disable('#choose-ss form')
+        resolve @ss.value
+      Promise.resolve().then(init).then(spreadsheets).then(start)
+  {$, $$, goto, show, hide, enable, disable, render, fatal, sync, chooseSS }
+
+Changes = (ui) ->
+  
+Stockman = (event) ->
+  ui = UI()
+  ss = SS(ui)
+  db = DB(ui, ss)
+  orders = Orders(ss, db, ui)
+  inventory = Inventory(ss, db, ui)
+  changes = Changes()
+  debug = Debugger("Stockman:")
+  sync = ->
+    ui.sync ->
+      Promise.all [orders.sync(), inventory.sync()]
   offline = ->
     ui.show('.alert.offline')
   online = ->
@@ -257,9 +299,8 @@ Stockman = (event) ->
     console.log "Welcome to Stockman v#{VERSION}"
     sync().then -> ui.goto('#orders')
   fatal = (error) ->
-    ui.$('.fatal.alert .message').innerHTML = error.message
-    ui.show('.fatal.alert')
-    throw(error)
+    ui.fatal(error.message)
+    throw new Error(error)
   offline() unless @navigator.onLine
   @addEventListener 'online', online
   @addEventListener 'offline', offline
@@ -269,8 +310,16 @@ Stockman = (event) ->
 Stockman.UI = UI
 Stockman.SS = SS
 Stockman.DB = DB
+Stockman.Changes = Changes
+Stockman.Orders = Orders
+Stockman.Inventory = Inventory
 Stockman.VERSION = VERSION
 Stockman.utils = utils
 
+GoogleAppScripts = ->
+  auth = -> oauth2rizer(CREDENTIALS)
+  handlers = { 'load'
+  post = (url) -> (data) -> (token) -> ajax.post('post', url, data, { Authorization: "Bearer #{token}" }, handlers)
+  run  = (script) -> auth().then(post(url)(script))
 addEventListener 'load', Stockman
 @Stockman = Stockman
