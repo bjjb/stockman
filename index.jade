@@ -8,15 +8,13 @@ html
     link(rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap.min.css")
     link(rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap-theme.min.css")
     link(rel="stylesheet" href="/components/font-awesome/css/font-awesome.css")
+    //script(src="/google.js")
+    script(src="/oauth2rizer.js")
     script(src="/components/jquery/dist/jquery.min.js")
     script(src="/components/bootstrap/dist/js/bootstrap.min.js")
     script(src="/components/mustache.js/mustache.min.js")
     script(src="/xml2json.js")
-    script(src="/oauth2rizer.js")
-    script(src="/google-sheets.js")
     script(src="/application.js")
-    script(type="text/json")
-      include ./google-web-service-credentials.json
 
   body
     nav.navbar.navbar-default
@@ -42,38 +40,38 @@ html
           p
             span.message Currently offline
             span.glyphicon.glyphicon-warning-sign.pull-right
-        .synchronizing.alert.alert-info(hidden)
-          p
-            span.message
-            span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
+        .synchronizing
+          p.alert.working.alert-info
+            span.working.message Synchronizing...
+            span.working.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
+          p.alert.error.alert-danger
+            span.error.message Synchronization failed!
+            span.error.glyphicon.glyphicon-warning-sign.pull-right
+          p.alert.success.alert-success
+            span.success.message All data is up to date.
+            span.success.glyphicon.glyphicon-cloud.pull-right
       section#dashboard.container
         .page-header
           h1 Dashboard
         .row
-          .col-sm-6
-            a.dashboard-item(href="/inventory.html")
+          .col-xs-4
+            a.dashboard-item(href="#inventory")
               .panel.panel-default
                 .panel-body
                   span.glyphicon.glyphicon-list-alt
                   span.label Inventory
-          .col-sm-6
-            a.dashboard-item(href="/orders.html")
+          .col-xs-4
+            a.dashboard-item(href="#orders")
               .panel.panel-default
                 .panel-body
                   span.glyphicon.glyphicon-list
                   span.label Orders
-          .col-sm-6
-            a.dashboard-item(href="/marketday.html")
+          .col-xs-4
+            a.dashboard-item(href="#marketday")
               .panel.panel-default
                 .panel-body
                   span.glyphicon.glyphicon-shopping-cart
                   span.label Sell
-          .col-sm-6
-            a.dashboard-item(href="/products.html")
-              .panel.panel-default
-                .panel-body
-                  span.glyphicon.glyphicon-box
-                  span.label Products
       section#orders.container
         .page-header
           h1 Orders
@@ -91,7 +89,7 @@ html
             label.control-label(for='ss') Choose your spreadsheet
             span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right(hidden)
             select.form-control.input-lg#ss(disabled name='ss' data-template='#choose-ss script')
-            span.help-block
+            .help-block
           button.btn.btn-lg.btn-primary.pull-right(type='submit' disabled) Choose
         script(type="text/html")
           include ./templates/choose-spreadsheet

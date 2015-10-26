@@ -39,7 +39,7 @@ copy = (files...) ->
   (d = 'DIST') ->
     { createReadStream, createWriteStream } = require 'fs'
     createReadStream("#{SRC}/#{f}").pipe(createWriteStream("#{d}/#{f}")) for f in files
-dist   = -> mkdir(DIST).then(copy('favicon.ico', 'xml2json.js'))
+dist   = -> mkdir(DIST).then(copy('favicon.ico', 'google.js'))
 html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
 css    = -> exec "stylus -o #{DIST} -m  #{SRC}/*.styl"
 js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
@@ -49,7 +49,7 @@ watch.html   = -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
 watch.css    = -> exec "stylus -w -o #{DIST} -m  #{SRC}/*.styl"
 watch.js     = -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
 server  = -> build().then Promise.race([watch(), serve()])
-serve = -> require('./server')(staticDirs: ['public'], port: 8088, logLevel: 'dev')
+serve = -> require('./server')(staticDirs: ['public'], port: 3000, logLevel: 'dev')
 
 task "build",  "compile the site",              build
 task "watch",  "watch for changes and compile", watch
