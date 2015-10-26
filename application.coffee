@@ -45,6 +45,9 @@ Inventory = ({ui, backend}) ->
     backend.inventory(replace)
   { sync }
 
+Order = (@data) ->
+Product = (@data) ->
+  
 Orders = ({ui, backend}) ->
   replace = (orders) ->
     items = orders.items
@@ -105,16 +108,33 @@ Backend = ({ ui, auth }) ->
     (token) ->
       new Promise (resolve, reject) ->
         method = 'post'
+        devMode = true
         headers =
           Authorization: "Bearer #{token}"
-        data = {parameters}
+        data = { parameters, devMode }
         data.function = functionName
         data = JSON.stringify(data)
         load = -> resolve(JSON.parse(@responseText).response.result)
         handlers = { load }
         ajax.request({method, url, headers, data, handlers})
   run = (functionName, parameters) -> auth().then(post(functionName, parameters))
-  { run }
+  { spreadsheet_id } = GOOGLE
+  getAllObjects = (force) ->
+    new Promise (resolve, reject) ->
+      { ORDERS, INVENTORY } = sessionStorage
+      if ORDERS and INVENTORY and !force
+        return resolve { ORDERS: JSON.parse(ORDERS), INVENTORY: JSON.parse(INVENTORY) }
+      delete sessionStorage.access_token
+      run('getAllObjects', [GOOGLE.spreadsheet_id]).then ({ORDERS, INVENTORY}) ->
+        sessionStorage.ORDERS = JSON.stringify(ORDERS)
+        sessionStorage.INVENTORY = JSON.stringify(INVENTORY)
+        { ORDERS, INVENTORY }
+  sync = ->
+    getAllObjects().then ({ orders, inventory }) ->
+      orders = (new Order(o) for o in orders)
+      inventory = (new Product(p) for p in inventory)
+      { orders, inventory }
+  { run, sync, spreadsheet_id }
 
 Stockman = (event) ->
   ui = UI(@)
@@ -123,8 +143,7 @@ Stockman = (event) ->
   changes   = Changes({ ui })
   sync = ->
     ui.sync ->
-      backend.run('getAllObjects', [GOOGLE.spreadsheet_id]).then (objects) ->
-        console.debug objects
+      backend.sync()
   offline = ->
     ui.show('.alert.offline')
   online = ->
