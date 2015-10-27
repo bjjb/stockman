@@ -61,14 +61,16 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
       (add...) ->
         (removeClass(q)(c) for c in remove) for q in qs
         (addClass(q)(c) for c in add) for q in qs
-  render  = (qs...) ->
+  render = (qs...) ->
     partials = (k) -> $(k).innerHTML or throw "Partial template missing: #{k}"
     (view) ->
       for q in qs
         for e in $$(q)
           return console.error("No template", e) unless t = e.dataset.template
           return console.error("Template missing", t) unless t = $(t)?.innerHTML
+          console.debug "Rendering", view
           e.innerHTML = Mustache.render(t, view, partials)
+      view
   listen = (qs...) ->
     (event) ->
       (callback) ->
@@ -85,9 +87,10 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
     $('.fatal.alert .message').innerHTML = error.message
     show('.fatal.alert')
   sync = (f) -> # Show sync status
-    success = ->
+    success = ({ orders, inventory }) ->
       replaceClass('.synchronizing')('working')('success')
       setTimeout((-> hide('.synchronizing')), 5000)
+      { orders, inventory }
     error = (error) ->
       replaceClass('.synchronizing')('working')('error')
       throw error
@@ -116,7 +119,12 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
         listen('#choose-spreadsheet form')('submit')(submit)
         goto('#choose-spreadsheet')
         getView().then(render('#choose-spreadsheet select')).then(wait)
-  {$, $$, goto, show, hide, enable, disable, render, fatal, sync, authorize, chooseSpreadsheet }
+  update = ({ orders, inventory }) ->
+    render('#orders .panel-group.orders')({orders})
+    render('#inventory tbody.products')({inventory})
+    { orders, inventory }
+  {$, $$, goto, show, hide, enable, disable, render, fatal, sync, authorize,
+    update, chooseSpreadsheet }
 
 Changes = ({ ui }) ->
 
@@ -241,12 +249,17 @@ Database = ({ ui, name, version, error, result, results, upgradeneeded, open,
           request = objectStore.openCursor(range)
           request.addEventListener 'success', results(resolve)
           request.addEventListener 'error', error(reject)
-    obj = { count, get, add, put, all }
+    index = (name) ->
+      db.then(transaction(name)).then(objectStore(name)).then (objectStore) ->
+        objectStore.index(name)
+    obj = { count, get, add, put, all, index }
     obj.delete = delete_
     obj
   update = ({ orders, inventory }) ->
-    console.debug "UPDATING DATABASE...", arguments
+    console.debug "UPDATING DATABASE...", orders, inventory
+    { orders, inventory }
   orders = store('orders')
+  orders.open = -> orders.index('Product').
   inventory = store('inventory')
   db = open(name, version)
   { orders, inventory, update }
@@ -279,7 +292,7 @@ Stockman = (event) ->
       setTimeout (-> ui.hide('.alert.online')), 5000
     start ?= ->
       console.log "Welcome to Stockman v#{VERSION}"
-      sync().then(ui.update).then(-> ui.goto('#dashboard'))
+      sync().then(ui.update)
     fatal ?= (error) ->
       ui.fatal(error.message)
       throw new Error(error)

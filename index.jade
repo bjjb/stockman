@@ -74,21 +74,22 @@ html
       section#orders.container
         .page-header
           h1 Orders
-        .panel-group.orders
-        script(type='text/html')
-          include ./templates/order
+        .panel-group.orders(data-template='#orders script.orders')
+        script.orders(type='text/html')
+          include ./templates/orders
       section#inventory.container
         .page-header
           h1 Inventory
-        table.table.table-striped
+        table.table.table-striped.table-condensed
           thead
             tr
-              th Name
-              th Total
-              th Available
-              th
-          tbody
-          script(type='text/html')
+              th.product   Name
+              th.available Available
+              th.total     Total
+              th.actions
+          tbody.products(data-template='#inventory script.product')
+        script.product(type='text/html')
+          include ./templates/product
 
       section#choose-spreadsheet.container
         .page-header
