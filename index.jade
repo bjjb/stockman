@@ -28,9 +28,8 @@ html
         #navbar.collapse.navbar-collapse
           ul.nav.navbar-nav.navbar-right
             // TODO: set active class on li
-            li: a(href="/orders.html") Orders
-            li: a(href="/inventory.html") Inventory
-            li: a(href="/products.html") Products
+            li: a(href="#orders") Orders
+            li: a(href="#inventory") Inventory
     main
       .container.alerts
         .fatal.alert.alert-danger(hidden)
@@ -91,15 +90,17 @@ html
           tbody
           script(type='text/html')
 
-      section#choose-ss.container
+      section#choose-spreadsheet.container
         .page-header
           h1 Choose your spreadsheet
+        p.lead.fetching.
+          Downloading a list of your spreadsheets from your Google Drive...
         form.form
           .form-group
-            label.control-label(for='ss') Choose your spreadsheet
-            span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right(hidden)
-            select.form-control.input-lg#ss(disabled name='ss' data-template='#choose-ss script')
+            label.control-label(for='spreadsheet-select') Choose your spreadsheet
+            span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
+            select.form-control.input-lg#spreadsheet-select(disabled name='spreadsheet' data-template='#choose-spreadsheet script')
             .help-block
-          button.btn.btn-lg.btn-primary.pull-right(type='submit' disabled) Choose
+          button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Choose
         script(type="text/html")
           include ./templates/choose-spreadsheet
