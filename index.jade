@@ -28,7 +28,14 @@ html
         #navbar.collapse.navbar-collapse
           ul.nav.navbar-nav.navbar-right
             // TODO: set active class on li
-            li: a(href="#orders") Orders
+            li.dropdown
+              a.dropdown-toggle(href="#" data-toggle="dropdown")
+                | Orders
+                span.caret
+              ul.dropdown-menu
+                li: a(href="#orders") All
+                li: a(href="#orders") Open
+                li: a(href="#orders") Closed
             li: a(href="#inventory") Inventory
     main
       .container.alerts
