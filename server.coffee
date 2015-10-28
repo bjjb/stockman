@@ -2,9 +2,7 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
   port        ?= process.env.PORT or 3000
   logLevel    ?= if process.env.NODE_ENV is 'dev' then 'dev' else 'tiny'
   staticDirs  ?= [ 'public' ]
-  middlewares ?= [
-    [ '/google-sheets', require('./google-sheets').proxy() ]
-  ]
+  middlewares ?= []
 
   express = require 'express'
   morgan  = require 'morgan'
