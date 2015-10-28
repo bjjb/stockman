@@ -1,0 +1,30 @@
+{
+  "name": "stockman",
+  "description": "A HTML5 stock and order manager, backed by Google Drive",
+  "main": "index.js",
+  "authors": [
+    "bjjb"
+  ],
+  "license": "ISC",
+  "keywords": [
+    "stock",
+    "inventory",
+    "order",
+    "manager"
+  ],
+  "homepage": "https://github.com/bjjb/stockman",
+  "moduleType": [],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "public/components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.3.5",
+    "font-awesome": "~4.4.0",
+    "mustache.js": "mustache#~2.2.0"
+  }
+}
