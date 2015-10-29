@@ -1,6 +1,8 @@
 "use strict"
 
 VERSION = 1
+DEBUG = 1
+
 GOOGLE =
   api_key: "AIzaSyDY9L74caWHWKwQt3v8PhUKJg1XrV1Sg1M"
   script_id: 'MCYPtGyMDBqYLtIXwqu-mpGxMYCeUYLF8'
@@ -28,7 +30,7 @@ ajax =
       xhr.setRequestHeader(k, v) for own k, v of headers
       xhr.addEventListener(k, v) for own k, v of handlers
       xhr.send(data)
-
+debug = (args...) -> console.debug(args...) if DEBUG; args[0]
 rejolve = (x) -> Promise[x? and 'resolve' or 'reject'](x)
 urlencode = (o) -> ([k, v].map(encodeURIComponent).join('=') for own k, v of o).join('&')
 taskChain = (tasks) -> tasks.reduce ((p, t) -> p.then(t)), Promise.resolve()
@@ -63,7 +65,7 @@ Order::price = ->
   p + (i.price ? 0) for i in @orderItems when i.status is 'SOLD'
   p.toFixed(2)
 Order::status = ->
-  return 'CLOSED' if @orderItems.every (i) -> i.status in ['SOLD']
+  return 'CLOSED' if @orderItems?.every (i) -> i.status in ['SOLD']
   'OPEN'
 Order::bsClass = ->
   switch @status()
@@ -91,7 +93,6 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
     (view) ->
       for q in qs
         for e in $$(q)
-          console.debug('UI#render', qs, e, view)
           return console.error("No template", e) unless t = e.dataset.template
           return console.error("Template missing", t) unless t = $(t)?.innerHTML
           e.innerHTML = Mustache.render(t, view, partials)
@@ -124,14 +125,12 @@ getUI = new Promise (resolve, reject) ->
     resolve(ui = UI(@))
 
 # Starts the whole thing
-started = false
 start = ->
   Promise.resolve()
     .then synchronize
     .then renderInventory
     .then renderOrders
-    .then -> ui.goto('#dashboard') unless location.hash?
-    .then -> started = true
+    .then -> ui.goto('#orders')
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -145,7 +144,7 @@ synchronize = ->
 
 # Render the inventory section
 renderInventory = ->
-  console.debug "renderInventory..."
+  debug "renderInventory..."
   getUI
     .then getInventory
     .then (products) -> ui.render('#inventory tbody.products')({products})
@@ -180,7 +179,7 @@ merge = (first) ->
     first
 
 getChanges = ->
-  console.debug "Getting changes..."
+  debug "Getting changes..."
 
 # Converts a list of changes into arguments that can be passed along to the
 # Apps Script.
@@ -218,7 +217,7 @@ getAllBy = (store) ->
 # where sheet is the Sheet name and changes is an array of Change objects.
 # where the key is the spreadsheet name, the first sub-array is a list of
 updateSpreadsheet = (changes) ->
-  console.debug "Syncing changes to DB", changes
+  debug "Syncing changes to DB", changes
   
 
 # Show that some synchronization is happening
@@ -226,7 +225,7 @@ showSynchronizing = ->
   getUI.then ->
     ui.replaceClass('.synchronizing')('success', 'error')('working')
     ui.show('.synchronizing')
-    console.debug("Synchronizing...")
+    debug("Synchronizing...")
 
 # Show that the synchronizing has finished
 showSynchronizationSuccess = ->
@@ -256,7 +255,7 @@ getSpreadsheetID = ->
     chooseSpreadsheet()
     reject("You need to choose a spreadsheet.")
 
-# Shows the spreadsheet chooser
+# Shows the spreadsheet chooser.
 chooseSpreadsheet = ->
   getUI.then ->
     ui.goto('#choose-spreadsheet')
@@ -289,14 +288,14 @@ getUserSpreadsheets = ->
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
 getSpreadsheetData = (params) ->
-  console.debug "getSpreadsheetData..."
+  debug "getSpreadsheetData..."
   cache(sessionStorage)('data') ->
     executeAppsScriptFunction('GetChanges')(params...)
 
 # Checks that a spreadsheet is valid, and redirects to the chooser if not,
 # rejecting the promise.
 checkSpreadsheetData = ({ inventory, orders }) ->
-  console.debug "checkSpreadsheetData..."
+  debug "checkSpreadsheetData..."
   unless inventory? and orders?
     chooseSpreadsheet()
     return Promise.reject("Couldn't find INVENTORY/ORDERS on the spreadsheet. Try another one.")
@@ -306,7 +305,7 @@ checkSpreadsheetData = ({ inventory, orders }) ->
 # orders, inventory, newOrders and newInventory - the latter should have IDs,
 # and updated timestamps.
 saveSpreadsheetData = ({ orders, inventory }) ->
-  console.debug "saveSpreadsheetData...", arguments
+  debug "saveSpreadsheetData...", arguments
   oldOrders = oldInventory = null
   openDB
     .then -> replaceOrders(orders)
@@ -316,12 +315,12 @@ saveSpreadsheetData = ({ orders, inventory }) ->
 
 # Fixes missing data in orders and inventories (ID, Updated, Order, in ORDERS)
 fixSpreadsheetData = ({ oldOrders, oldInventory, orders, inventory }) ->
-  console.debug "fixSpreadsheetData..."
+  debug "fixSpreadsheetData..."
   Promise.resolve "Sending the missing IDs"
 
 # Sends the changes to the spreadsheet
 updateSpreadsheetData = ({ orders, inventory }) ->
-  console.debug "updateSpreadsheetData..."
+  debug "updateSpreadsheetData..."
   Promise.resolve "Sending the changes to the spreadsheet"
 
 # Finds or creates an order.
@@ -330,9 +329,9 @@ findOrCreateOrder = (order) ->
     .catch -> createOrder(order)
     .then merge(order)
 
-# Get the changes from the spreadsheet
+# Get the changes from the spreadsheet, and update the database
 getSpreadsheetChanges = ->
-  console.debug "getSpreadsheetChanges..."
+  debug "getSpreadsheetChanges..."
   Promise.resolve()
     .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
     .then getSpreadsheetData
@@ -347,28 +346,15 @@ openDB = new Promise (resolve, reject) ->
   migrations = [
     (db) ->
       os = db.createObjectStore 'orders', keyPath: 'id', autoIncrement: true
-      # os.createIndex 'byOrder', 'order', unique: false
-      # os.createIndex 'byCustomer', 'customer', unique: false
-      # os.createIndex 'byProduct', 'product', unique: false
-      # os.createIndex 'byStatus', 'status', unique: false
-      # os.createIndex 'byHoldUntil', 'hold_until', unique: false
-      # os.createIndex 'bySoldAt', 'date_sold', unique: false
-      # os.createIndex 'byUpdated', 'updated', unique: false
+      os.createIndex 'byStatus', 'status', unique: false
       os = db.createObjectStore 'inventory', keypath: 'product'
-      # os.createIndex 'byUpdated', 'updated', unique: false
-      # os.createIndex 'byTotal', 'total', unique: false
-      # os.createIndex 'byAvailable', 'available', unique: false
-      # os.createIndex 'byType', 'type', unique: false
+      os.createIndex 'byType', 'type', unique: false
       os = db.createObjectStore 'changes', keypath: 'id', autoIncrement: true
-      # os.createIndex 'byObjectType', 'type', unique: false
-      # os.createIndex 'byObjectID', 'object_id', unique: false
-      # os.createIndex 'byOldValues', 'old_values', unique: false
-      # os.createIndex 'byNewValues', 'new_values', unique: false
-      # os.createIndex 'byTime', 'time', unique: false
+      os.createIndex 'byTime', 'time', unique: false
   ]
   migrate = ({ oldVersion, newVersion }) ->
     Promise.all(migration(@result) for migration in migrations[oldVersion..newVersion])
-      .then console.debug "Migrated!"
+      .then debug "Migrated!"
   request = indexedDB.open('stockman', VERSION)
   request.addEventListener 'error', -> reject @error
   request.addEventListener 'success', -> resolve db = @result
@@ -378,7 +364,6 @@ openDB = new Promise (resolve, reject) ->
 
 # Gets an authorization token
 getAuthToken = ->
-  delete sessionStorage.access_token # XXX - dirty hack to force refresh of token
   oauth2rizer(GOOGLE)()
 
 # Gets a function which can execute the given Apps Script function remotely
@@ -409,7 +394,7 @@ executeAppsScriptFunction = (functionName) ->
       getAuthToken().then(post)
 
 clearStore = (store) ->
-  console.debug "clearStore", store
+  debug "clearStore", store
   new Promise (resolve, reject) ->
     openDB.then ->
       request = db.transaction(store, 'readwrite').objectStore(store).clear()
@@ -417,9 +402,7 @@ clearStore = (store) ->
       request.addEventListener 'success', -> resolve(@result)
 
 addOne = (store, key) ->
-  # console.debug "addOne", store
   (record) ->
-    console.debug "addOne(#{store})", record
     new Promise (resolve, reject) ->
       openDB.then ->
         args = [record]
@@ -430,13 +413,10 @@ addOne = (store, key) ->
           reject(@error.message)
           throw @error.message
         request.addEventListener 'success', ->
-          #console.debug "Added record to #{store}", record, @result
           resolve(@result)
 
 addAll = (store, key) ->
-  #console.debug "addAll", store
   (records) ->
-    #console.debug "addAll(#{store})", records
     Promise.all(addOne(store, key)(record) for record in records)
 
 replaceInventory = (products) ->
