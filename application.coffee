@@ -259,7 +259,6 @@ getSpreadsheetID = ->
 # Shows the spreadsheet chooser
 chooseSpreadsheet = ->
   getUI.then ->
-    ui.listen('#choose-spreadsheet select')('change')(change)
     ui.goto('#choose-spreadsheet')
     ui.addClass('#choose-spreadsheet')('fetching')
     getUserSpreadsheets().then (spreadsheets) ->
@@ -279,7 +278,7 @@ cache = (storage) ->
     (f) ->
       return Promise.resolve(JSON.parse(storage.getItem(key))) if storage.hasOwnProperty(key)
       f().then (result) ->
-        storage.setItem(key, JSON.stringify(result))
+        storage.setItem(key, JSON.stringify(result)) if DEBUG?
         result
 
 # Gets a list of spreadsheets in the user's Google Drive
