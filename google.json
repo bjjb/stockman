@@ -4,6 +4,6 @@
   "client_secret": "5YDG6-ezoZv04_8SXkjcrizf",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://www.googleapis.com/oauth2/v3/token",
-  "scopes": [ 'https://spreadsheets.google.com/feeds' ]
+  "scopes": [ "https://spreadsheets.google.com/feeds" ]
 }
 
