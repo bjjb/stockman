@@ -68,7 +68,7 @@ html
             input.form-control(type="search" name="filter" placeholder="Find a customer")
             .input-group-btn
               button.btn.btn-default(type="button" name="filter") Filter
-        .panel-group.orders(data-template='#orders script.orders')
+        .orders(data-template='#orders script.orders')
         script.orders(type='text/html')
           include ./templates/orders
       section#inventory.container

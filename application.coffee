@@ -82,10 +82,19 @@ Order::price = ->
 Order::status = ->
   return 'CLOSED' if @orderItems?.every (i) -> i.status in ['SOLD']
   'OPEN'
+Order::context = ->
+  switch @status()
+    when 'OPEN' then 'info'
+    when 'CLOSED' then 'default'
 Order::bsClass = ->
   switch @status()
     when 'OPEN' then 'panel-info'
     when 'CLOSED' then 'panel-default'
+Order::items = -> @orderItems
+Order::items.open = -> i for i in @items when i.status is 'OPEN'
+Order::items.sold = -> i for i in @items when i.status is 'SOLD'
+Order::items.hold = -> i for i in @items when i.status is 'HOLD'
+Order::items.short = -> i for i in @items when i.status is 'SHORT'
   
 UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, authorize }) ->
   # DOM manipulation utilities

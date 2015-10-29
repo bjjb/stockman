@@ -1,32 +1,35 @@
-| {{#orders}}
-.order.panel.panel-default(class="{{bsClass}} {{status}}")
-  .panel-heading
-    h4.panel-title
-      a(data-toggle="collapse" href="#order-{{id}}") {{customer}}
-  .panel-collapse(id="order-{{id}}")
-    .panel-body
-      | {{#orderItems}}
-      .row.order-item(id="order-item-{{id}}" class="{{status}} {{commentClass}}")
-        .col-xs-2.col-sm-2
-          .qty {{qty}}
-        .col-xs-10.col-sm-5
-          .product {{product}}
-        .col-xs-12.col-sm-5
-          form.form
-            .input-group
-              span.input-group-addon $
-              input.form-control(type="number" step="0.05" min="0.0" placeholder="Price" )
-              .input-group-btn
-                button.btn.btn-danger.action(type='button' name="action") {{action}}
-                button.btn.btn-danger.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
-                  span.caret
-                  span.sr-only Choose action
-                ul.dropdown-menu.dropdown-menu-right
-                  li
-                    a.action(href='sell' data-action="sell") Sell
-                    a.action(href='hold' data-action="hold") Hold
-                    a.action(href='short' data-action="short") Short
-                    a.action(href='delete' data-action="delete") Delete
-      | {{/orderItems}}
-      p.comment {{comment}}
-| {{/orders}}
+.panel-group#order-panels
+  | {{#orders}}
+  .order.panel(class="{{status}}" class="panel-{{context}}")
+    .panel-heading
+      h4.panel-title
+        a.customer(data-toggle="collapse" data-parent="#order-panels" href="#order-{{id}}")
+          | {{customer}}
+          small.status.pull-right {{items.open.length}} {{status}}
+    .panel-collapse.collapse(id="order-{{id}}")
+      .panel-body
+        | {{#items}}
+        .row.order-item(id="order-item-{{id}}" class="{{status}} {{commentClass}}")
+          .col-xs-2.col-sm-2
+            .qty {{qty}}
+          .col-xs-10.col-sm-5
+            .product {{product}}
+          .col-xs-12.col-sm-5
+            form.form.actions
+              .input-group
+                span.input-group-addon $
+                input.form-control(type="number" step="0.05" min="0.0" placeholder="Price" )
+                .input-group-btn
+                  button.btn.btn-danger.action(type='button' name="action") {{action}}
+                  button.btn.btn-danger.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
+                    span.caret
+                    span.sr-only Choose action
+                  ul.dropdown-menu.dropdown-menu-right
+                    li
+                      a.action(href='sell' data-action="sell") Sell
+                      a.action(href='hold' data-action="hold") Hold
+                      a.action(href='short' data-action="short") Short
+                      a.action(href='delete' data-action="delete") Delete
+        | {{/items}}
+        p.comment {{comment}}
+  | {{/orders}}
