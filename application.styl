@@ -1,3 +1,4 @@
+green = #3c763d
 main>section
   display none
   &:target
@@ -70,4 +71,22 @@ button .fa, button .glyphicon
       text-align center
 
 #orders
-  //
+  form.filter
+    margin-top 0.5em
+    margin-bottom 0.5em
+  .qty, .product
+    font-size 1.2em
+    margin-top 0.5em
+    margin-bottom 0.5em
+  .product
+    font-weight bold
+  p.qty
+    text-align right
+  button.action
+    min-width: 6em
+  .order.CLOSED
+    display: none
+  .order-item.SOLD
+    color green
+    .product
+      text-decoration line-through

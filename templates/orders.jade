@@ -3,45 +3,30 @@
   .panel-heading
     h4.panel-title
       a(data-toggle="collapse" href="#order-{{id}}") {{customer}}
-  .panel-collapse.collapse(id="order-{{id}}")
+  .panel-collapse(id="order-{{id}}")
     .panel-body
-      .table-responsive
-        table.table.table-striped.table-hover.order-items
-          thead
-            tr
-              th Qty
-              th Product
-              th 
-              th
-                //- TODO: put filter toggle here
-          tfoot
-            tr
-              td
-              td
-              td(colspan=2) {{price}}
-          tbody
-            | {{#orderItems}}
-            tr(id="order-item-{{id}}" class="{{status}} {{commentClass}}")
-              td.qty: span.qty {{qty}}
-              td.product: span.product {{product}}
-              td.actions
-                form.form
-                  .input-group
-                    span.input-group-addon $
-                    input.form-control(type="number" step="0.05" min="0.0" placeholder="Price")
-                    .input-group-btn
-                      button.btn.btn-default.dropdown-toggle(class="{{status}}" data-toggle="dropdown")
-                        | Hold
-                        span.caret
-                      ul.dropdown-menu.dropdown-menu-right
-                        li
-                          a(href='#' data-action="sell") Sell
-                          a(href='#' data-action="hold") Hold
-                          a(href='#' data-action="short") Short
-                          a(href='#' data-action="delete") Delete
-              td.status
-                //- TODO: put icon here instead
-            | {{/orderItems}}
+      | {{#orderItems}}
+      .row.order-item(id="order-item-{{id}}" class="{{status}} {{commentClass}}")
+        .col-xs-2.col-sm-2
+          .qty {{qty}}
+        .col-xs-10.col-sm-5
+          .product {{product}}
+        .col-xs-12.col-sm-5
+          form.form
+            .input-group
+              span.input-group-addon $
+              input.form-control(type="number" step="0.05" min="0.0" placeholder="Price" {{#isSold}}disabled{{#isSold}})
+              .input-group-btn
+                button.btn.btn-danger.action(type='button' name="action") {{action}}
+                button.btn.btn-danger.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
+                  span.caret
+                  span.sr-only Choose action
+                ul.dropdown-menu.dropdown-menu-right
+                  li
+                    a.action(href='sell' data-action="sell") Sell
+                    a.action(href='hold' data-action="hold") Hold
+                    a.action(href='short' data-action="short") Short
+                    a.action(href='delete' data-action="delete") Delete
+      | {{/orderItems}}
       p.comment {{comment}}
-    .panel-footer
 | {{/orders}}

@@ -16,7 +16,7 @@ html
 
   body
     nav.navbar.navbar-default
-      section.container-fluid
+      section.container
         header.navbar-header
           button.navbar-toggle.collapsed(type="button" data-toggle="collapse" data-target='#navbar')
             span.icon-bar
@@ -57,31 +57,15 @@ html
           p.alert.success.alert-success
             span.success.message All data is up to date.
             span.success.glyphicon.glyphicon-cloud.pull-right
-      section#dashboard.container
-        .page-header
-          h1 Dashboard
-        .row
-          .col-xs-4
-            a.dashboard-item(href="#inventory")
-              .panel.panel-default
-                .panel-body
-                  span.glyphicon.glyphicon-list-alt
-                  span.label Inventory
-          .col-xs-4
-            a.dashboard-item(href="#orders")
-              .panel.panel-default
-                .panel-body
-                  span.glyphicon.glyphicon-list
-                  span.label Orders
-          .col-xs-4
-            a.dashboard-item(href="#marketday")
-              .panel.panel-default
-                .panel-body
-                  span.glyphicon.glyphicon-shopping-cart
-                  span.label Sell
       section#orders.container
         .page-header
           h1 Orders
+        form.form.filter
+          .input-group.input-group-lg
+            span.input-group-addon.glyphicon.glyphicon-search
+            input.form-control(type="search" name="filter" placeholder="Find a customer")
+            .input-group-btn
+              button.btn.btn-default(type="button" name="filter") Filter
         .panel-group.orders(data-template='#orders script.orders')
         script.orders(type='text/html')
           include ./templates/orders
@@ -92,8 +76,8 @@ html
           thead
             tr
               th.product   Name
-              th.available Available
               th.total     Total
+              th.available Available
               th.actions
           tbody.products(data-template='#inventory script.product')
         script.product(type='text/html')

@@ -53,6 +53,16 @@ OrderItem::bsClass = ->
     when 'OPEN' then 'info'
     when 'HOLD' then 'warning'
     when 'SHORT' then 'success'
+    else 'default'
+OrderItem::action = ->
+  switch @status
+    when 'OPEN' then 'Sell'
+    when 'SOLD' then 'Undo'
+    else 'Open'
+OrderItem::isSold = -> @status is 'SOLD'
+OrderItem::isOpen = -> @status is 'OPEN'
+OrderItem::isHold = -> @status is 'HOLD'
+OrderItem::isShort = -> @status is 'SHORT'
 Product = (data) ->
   @[k] = v for own k, v of data when v isnt ''
   @[k] = new Date(@[k]) for k in ['updated'] when @[k]
@@ -124,12 +134,51 @@ getUI = new Promise (resolve, reject) ->
   window.addEventListener 'load', ->
     resolve(ui = UI(@))
 
+ordersHandler = (event) ->
+  { type, target } = event
+  { name, id, classList, dataset, nodeName } = target
+  if type is 'click'
+    if nodeName is 'A' and 'action' in classList
+      event.preventDefault()
+      setOrderItemAction(target)
+    if nodeName is 'BUTTON' and 'action' in classList
+      event.preventDefault()
+      performOrderItemAction(target)
+    if nodeName is 'BUTTON' and dataset.action is 'newOrder'
+      event.preventDefault()
+      showNewOrderForm()
+    if nodeName is 'BUTTON' and dataset.action is 'newOrderItem'
+      event.preventDefault()
+      showNewOrderItemFormt(target)
+    if nodeName is 'BUTTON' and dataset.action is 'removeOrderItem'
+      event.preventDefault()
+      removeOrderItem(target)
+  if type is 'input'
+    if target.name is 'price'
+      updateOrderPrice(target)
+    else if target.name is 'filter'
+      filterOrders(target)
+  if type is 'submit'
+    event.preventDefault()
+    if target.name is 'filter'
+      filterOrders(target)
+    if target.name is 'price'
+      updateOrderPrice(target)
+    
+
+inventoryHandler = (event) ->
+  { target } = event
+
 # Starts the whole thing
 start = ->
   Promise.resolve()
     .then synchronize
     .then renderInventory
     .then renderOrders
+    .then -> ui.listen('#orders')('click')(ordersHandler)
+    .then -> ui.listen('#orders')('input')(ordersHandler)
+    .then -> ui.listen('#orders')('submit')(ordersHandler)
+    .then -> ui.listen('#inventory')('click')(inventoryHandler)
     .then -> ui.goto('#orders')
 
 # Synchronize the local database with the spreadsheet
