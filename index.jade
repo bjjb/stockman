@@ -49,8 +49,11 @@ html
             span.working.message Synchronizing...
             span.working.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
           p.alert.error.alert-danger
-            span.error.message Synchronization failed!
             span.error.glyphicon.glyphicon-warning-sign.pull-right
+            span.error.message
+              | Synchronization failed!
+              br
+              small.reason
           p.alert.success.alert-success
             span.success.message All data is up to date.
             span.success.glyphicon.glyphicon-cloud.pull-right
@@ -99,14 +102,22 @@ html
       section#choose-spreadsheet.container
         .page-header
           h1 Choose your spreadsheet
-        p.lead.fetching.
-          Downloading a list of your spreadsheets from your Google Drive...
-        form.form
-          .form-group
-            label.control-label(for='spreadsheet-select') Choose your spreadsheet
-            span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
-            select.form-control.input-lg#spreadsheet-select(disabled name='spreadsheet' data-template='#choose-spreadsheet script')
-            .help-block
-          button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Choose
+        .fetching
+          p.jumbotron.
+            Downloading a list of your spreadsheets from your Google Drive...
+        .error
+          p.jumbotron.danger.
+            Uh oh! Failed to get your spreadsheets!
+            span.reason
+        .waiting
+          form.form
+            .form-group
+              label.control-label(for='spreadsheet-select') Choose your spreadsheet
+              span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
+              select.form-control.input-lg#spreadsheet-select(disabled name='spreadsheet' data-template='#choose-spreadsheet script')
+              .help-block.help.
+                  Once you have your spreadsheet linked, the data will be used
+                  here
+            button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Use this spreadsheet
         script(type="text/html")
           include ./templates/choose-spreadsheet

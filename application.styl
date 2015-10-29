@@ -50,7 +50,16 @@ button .fa, button .glyphicon
   .page-header
     display inherit
   &.fetching
-    form, p.fetching
+    > .fetching
+      display inherit
+  &.waiting
+    > .waiting
+      display inherit
+  &.error
+    > .error
+      display inherit
+  &.success
+    > .success
       display inherit
 
 #inventory
@@ -59,3 +68,6 @@ button .fa, button .glyphicon
       font-size small
     .total, .available
       text-align center
+
+#orders
+  //

@@ -1,16 +1,47 @@
 | {{#orders}}
-.panel.order.panel-default
+.order.panel.panel-default(class="{{bsClass}} {{status}}")
   .panel-heading
     h4.panel-title
-      a(data-toggle="collapse" href="order-item-{{ID}}") {{Customer}}
-  .panel-collapse.collapse(id="order-item-{{ID}}")
+      a(data-toggle="collapse" href="#order-{{id}}") {{customer}}
+  .panel-collapse.collapse(id="order-{{id}}")
     .panel-body
-      table.table.order-items
-        tbody
-          | {{#items}}
-          tr(id="{{domID}}")
-            td.product {{Product}}
-            td.quantity {{Quantity}}
-            td.actions {{Actions}}
-          | {{/items}}
+      .table-responsive
+        table.table.table-striped.table-hover.order-items
+          thead
+            tr
+              th Qty
+              th Product
+              th 
+              th
+                //- TODO: put filter toggle here
+          tfoot
+            tr
+              td
+              td
+              td(colspan=2) {{price}}
+          tbody
+            | {{#orderItems}}
+            tr(id="order-item-{{id}}" class="{{status}} {{commentClass}}")
+              td.qty: span.qty {{qty}}
+              td.product: span.product {{product}}
+              td.actions
+                form.form
+                  .input-group
+                    span.input-group-addon $
+                    input.form-control(type="number" step="0.05" min="0.0" placeholder="Price")
+                    .input-group-btn
+                      button.btn.btn-default.dropdown-toggle(class="{{status}}" data-toggle="dropdown")
+                        | Hold
+                        span.caret
+                      ul.dropdown-menu.dropdown-menu-right
+                        li
+                          a(href='#' data-action="sell") Sell
+                          a(href='#' data-action="hold") Hold
+                          a(href='#' data-action="short") Short
+                          a(href='#' data-action="delete") Delete
+              td.status
+                //- TODO: put icon here instead
+            | {{/orderItems}}
+      p.comment {{comment}}
+    .panel-footer
 | {{/orders}}

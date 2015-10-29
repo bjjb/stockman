@@ -39,7 +39,7 @@ copy = (files...) ->
   (d = 'DIST') ->
     { createReadStream, createWriteStream } = require 'fs'
     createReadStream("#{SRC}/#{f}").pipe(createWriteStream("#{d}/#{f}")) for f in files
-dist   = -> mkdir(DIST).then(copy('favicon.ico', 'google.js'))
+dist   = -> mkdir(DIST).then(copy('favicon.ico'))
 html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
 css    = -> exec "stylus -o #{DIST} -m  #{SRC}/*.styl"
 js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"

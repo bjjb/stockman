@@ -46,23 +46,23 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
   extractParams = (search) ->
     search?.split('&').reduce(extractParam, {}) or {}
   start ?= ->
-    console.debug "oauth2rizer.start"
+    #console.debug "oauth2rizer.start"
     state = _state
     redirect(auth_uri, { client_id, response_type, redirect_uri, state, scope, access_type })
   redirect ?= (uri, params) ->
-    console.debug "oauth2rizer.redirect", uri, params
+    #console.debug "oauth2rizer.redirect", uri, params
     oldLocation = location.toString()
     location.replace(buildURL(uri, params))
   refresh ?= (refresh_token) ->
-    console.debug "oauth2rizer.refresh", refresh_token
+    #console.debug "oauth2rizer.refresh", refresh_token
     grant_type = 'refresh_token'
     post(token_uri, { client_id, client_secret, grant_type, refresh_token })
   exchange ?= (code) ->
-    console.debug "oauth2rizer.exchange", code
+    #console.debug "oauth2rizer.exchange", code
     grant_type = 'authorization_code'
     post(token_uri, { code, client_id, client_secret, grant_type, redirect_uri })
   remember ?= (result) ->
-    console.debug "oauth2rizer.remember", result
+    #console.debug "oauth2rizer.remember", result
     { access_token, expires_in, token_type, refresh_token } = result
     return revoke(access_token) unless localStorage.refresh_token? or refresh_token?
     expires_at = new Date()
@@ -76,7 +76,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
     sessionStorage.expires_at = expires_at
     sessionStorage.access_token = access_token
   revoke ?= (token) ->
-    console.debug "oauth2rizer.revoke", token
+    #console.debug "oauth2rizer.revoke", token
     delete localStorage.host
     delete localStorage.refresh_token
     delete sessionStorage.host
@@ -85,7 +85,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
     delete sessionStorage.access_token
     location.replace([revoke_uri, buildSearch({ token })].join('?'))
   get ?= (uri, params) ->
-    console.debug "oauth2rizer.get", uri, params
+    #console.debug "oauth2rizer.get", uri, params
     new Promise (resolve, reject) ->
       xhr = new XMLHttpRequest
       uri = [uri, buildSearch(params)].join('?')
@@ -96,7 +96,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
       xhr.addEventListener 'error', reject
       xhr.send()
   post ?= (uri, params) ->
-    console.debug "oauth2rizer.post", uri, params
+    #console.debug "oauth2rizer.post", uri, params
     new Promise (resolve, reject) ->
       xhr = new XMLHttpRequest
       xhr.open 'POST', uri
@@ -107,7 +107,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
       xhr.addEventListener 'error', reject
       xhr.send(buildSearch(params))
   f = ->
-    console.debug "oauth2rizer()"
+    #console.debug "oauth2rizer()"
     new Promise (resolve, reject) ->
       # 1 - we have a valid access token
       { access_token, token_type, expires_at, host } = sessionStorage

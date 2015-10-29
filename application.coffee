@@ -33,17 +33,42 @@ rejolve = (x) -> Promise[x? and 'resolve' or 'reject'](x)
 urlencode = (o) -> ([k, v].map(encodeURIComponent).join('=') for own k, v of o).join('&')
 taskChain = (tasks) -> tasks.reduce ((p, t) -> p.then(t)), Promise.resolve()
 arrayify = (obj) -> x for x in obj # !!arrayify(arguments) instanceof Array //=> true
-serializeXML = (xml) -> xml.documentElement.innerHTML
-deserializeXML = (s,t) -> x = document.createElement(t ? 'feed'); x.innerHTML = s; x
 apply = (f) -> (a...) -> (o) -> o[f](a...) # apply('toLowerCase')()("BOO!") //=> "boo!" 
 putProperty = (o) -> (k) -> (x) -> o[k] = x
 getProperty = (o) -> (k) -> if o[k]? then Promise.resolve(o[k]) else Promise.reject(putProperty(o)(k))
-utils = { rejolve, urlencode, ajax, taskChain, arrayify, serializeXML, deserializeXML, getProperty, putProperty }
+
+utils = { rejolve, urlencode, ajax, taskChain, arrayify, getProperty, putProperty }
 
 
-Order = (@data) ->
-OrderItem = (@data) ->
-Product = (@data) ->
+OrderItem = (data) ->
+  @[k] = v for own k, v of data when v isnt ''
+  @[k] = new Date(@[k]) for k in ['updated', 'date_sold', 'hold_until'] when @[k]
+  @
+OrderItem::getOrderID = -> @order ? @customer
+OrderItem::bsClass = ->
+  switch @status
+    when 'SOLD' then 'success'
+    when 'OPEN' then 'info'
+    when 'HOLD' then 'warning'
+    when 'SHORT' then 'success'
+Product = (data) ->
+  @[k] = v for own k, v of data when v isnt ''
+  @[k] = new Date(@[k]) for k in ['updated'] when @[k]
+  @
+Order = ({ @customer, @id }) ->
+  @orderItems = []
+  @
+Order::price = ->
+  p = 0
+  p + (i.price ? 0) for i in @orderItems when i.status is 'SOLD'
+  p.toFixed(2)
+Order::status = ->
+  return 'CLOSED' if @orderItems.every (i) -> i.status in ['SOLD']
+  'OPEN'
+Order::bsClass = ->
+  switch @status()
+    when 'OPEN' then 'panel-info'
+    when 'CLOSED' then 'panel-default'
   
 UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, authorize }) ->
   # DOM manipulation utilities
@@ -66,9 +91,9 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
     (view) ->
       for q in qs
         for e in $$(q)
+          console.debug('UI#render', qs, e, view)
           return console.error("No template", e) unless t = e.dataset.template
           return console.error("Template missing", t) unless t = $(t)?.innerHTML
-          console.debug "Rendering", view
           e.innerHTML = Mustache.render(t, view, partials)
       view
   listen = (qs...) ->
@@ -82,236 +107,347 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
       (callback) ->
         for q in qs
           e.removeEventListener(event, callback) for e in $$(q)
-  # Specific DOM wrapper functions
-  fatal = (error) -> # Show a fatal message
-    $('.fatal.alert .message').innerHTML = error.message
-    show('.fatal.alert')
-  sync = (f) -> # Show sync status
-    success = ({ orders, inventory }) ->
-      replaceClass('.synchronizing')('working')('success')
-      setTimeout((-> hide('.synchronizing')), 5000)
-      { orders, inventory }
-    error = (error) ->
-      replaceClass('.synchronizing')('working')('error')
-      throw error
-    replaceClass('.synchronizing')('success', 'error')('working')
-    show('.synchronizing')
-    f().then(success, error)
-  chooseSpreadsheet = (getView) ->
-    (callback) ->
-      new Promise (resolve, reject) ->
-        change = ->
-          $('#choose-spreadsheet p').innerHTML = "Select this spreadsheet?"
-          enable('#choose-spreadsheet select')
-          enable('#choose-spreadsheet button')
-        submit = ->
-          $('#choose-spreadsheet p').innerHTML = ""
-          disable('#choose-spreadsheet button')
-          disable('#choose-spreadsheet select')
-          callback(@spreadsheet.value)
-        wait = ->
-          hide('#choose-spreadsheet .spinner')
-          enable('#choose-spreadsheet select')
-          replaceClass('#choose-spreadsheet button')('btn-default')('btn-success')
-        $('#choose-spreadsheet p').innerHTML = "Getting your spreadsheets..."
-        addClass('#choose-spreadsheet')('fetching')
-        listen('#choose-spreadsheet select')('change')(change)
-        listen('#choose-spreadsheet form')('submit')(submit)
-        goto('#choose-spreadsheet')
-        getView().then(render('#choose-spreadsheet select')).then(wait)
   update = ({ orders, inventory }) ->
     render('#orders .panel-group.orders')({orders})
     render('#inventory tbody.products')({inventory})
     { orders, inventory }
-  {$, $$, goto, show, hide, enable, disable, render, fatal, sync, authorize,
-    update, chooseSpreadsheet }
+  {$, $$, goto, show, hide, enable, disable, render, update, addClass,
+    removeClass, replaceClass, listen, ignore }
 
 Changes = ({ ui }) ->
 
-# Interface for interacting with the spreadsheet over Google Apps Script.
-Spreadsheet = ({ ui, auth, download, sync, run, spreadsheet }) ->
-  { scripts_uri, script_id } = GOOGLE
-  auth ?= ->
-    oauth2rizer(GOOGLE)()
-  spreadsheet ?= ->
-    getProperty(localStorage)('spreadsheet').catch(ui.chooseSpreadsheet(spreadsheet.choose))
-  spreadsheet.choose ?= ->
-    run('SpreadsheetFiles')().then (spreadsheets) -> { spreadsheets }
-  run ?= (functionName) ->
-    url = "#{scripts_uri}/#{script_id}:run"
-    data = { function: functionName, devMode: true }
-    (parameters...) ->
-      new Promise (resolve, reject) ->
-        load = ->
-          response = JSON.parse(@responseText)
-          if response.error?
-            console.error response.error
-            reject response.error
-          resolve response.response.result
-        handlers = { load }
-        data.parameters = parameters
-        method = 'post'
-        post = (token) ->
-          method = 'post'
-          headers = { Authorization: "Bearer #{token}" }
-          data = JSON.stringify(data)
-          ajax.request({ method, url, headers, data, handlers })
-        auth().then(post)
-  download ?= ->
-    console.debug "Spreadsheet download", @
-    spreadsheet()
-      .then(run('AllSpreadsheetObjects'))
-      .then ({ ORDERS, INVENTORY }) ->
-        orders: (o for o in ORDERS when o.Product)
-        inventory: (p for p in INVENTORY when p.Product)
-  { run, download }
+ui = null # A collection of helpers for modifying the DOM
 
-Database = ({ ui, name, version, error, result, results, upgradeneeded, open,
-              transaction, objectStore, store, update } = {}) ->
-  name    ?= 'stockman'
-  version ?= 1
-  error ?= (reject) ->
-    (event) ->
-      console.error "Database error: ", @, arguments
-      reject(error)
-  result ?= (resolve) ->
-    (event) ->
-      console.debug "Database result! ", @, arguments
-      resolve(@result)
-  results ?= (resolve, reject) ->
-    results = []
-    (event) ->
-      console.debug "Database results! ", @, arguments
-      return resolve(results) unless @result
-      results.push(@result.value)
-      @result.continue()
-  upgradeneeded ?= (reject) ->
-    (event) ->
-      console.debug "Database migration...", @, arguments
-      os = @result.createObjectStore 'inventory', keyPath: "ID", autoIncrement: true
-      os.createIndex 'Product', 'Product', unique: false
-      os = @result.createObjectStore 'orders', keyPath: "ID", autoIncrement: true
-      os.createIndex 'Customer', 'Customer', unique: false
-      os.createIndex 'Product', 'Product', unique: false
-      os.createIndex 'Status', 'Status', unique: false
-      console.debug "Database migration complete", @, arguments
-  open = ->
+# A promise that resolves when the window is loaded
+getUI = new Promise (resolve, reject) ->
+  window.addEventListener 'load', ->
+    resolve(ui = UI(@))
+
+# Starts the whole thing
+started = false
+start = ->
+  Promise.resolve()
+    .then synchronize
+    .then renderInventory
+    .then renderOrders
+    .then -> ui.goto('#dashboard') unless location.hash?
+    .then -> started = true
+
+# Synchronize the local database with the spreadsheet
+synchronize = ->
+  Promise.resolve()
+    .then showSynchronizing
+    .then getSpreadsheetChanges
+    .then getChanges
+    .then updateSpreadsheet
+    .then showSynchronizationSuccess
+    .catch showSynchronizationFailure
+
+# Render the inventory section
+renderInventory = ->
+  console.debug "renderInventory..."
+  getUI
+    .then getInventory
+    .then (products) -> ui.render('#inventory tbody.products')({products})
+
+# Render the orders section
+renderOrders = ->
+  getUI
+    .then -> getOrders()
+    .then (orders) -> ui.render('#orders div.orders')({orders})
+
+# Gets the inventory from the database
+getInventory = ->
+  getAll('inventory')().then (products) ->
+    new Product(p) for p in products
+
+# Gets the orders from the database, and makes Orders objects
+getOrders = ->
+  getAll('orders')().then (orderItems) ->
+    orderItems = (new OrderItem(o) for o in orderItems)
+    orders = {}
+    for orderItem, id in orderItems
+      order_id = orderItem.getOrderID()
+      { customer } = orderItem
+      order = orders[order_id] ?= new Order({ customer, id })
+      order.orderItems.push(orderItem)
+    (v for own k, v of orders)
+
+# Gets a function to merge the second argument into the first
+merge = (first) ->
+  (second) ->
+    first[k] = v for own k, v of second
+    first
+
+getChanges = ->
+  console.debug "Getting changes..."
+
+# Converts a list of changes into arguments that can be passed along to the
+# Apps Script.
+formatDatabaseChanges = (changes) ->
+  changeToScriptParams(change) for change in changes
+
+# Gets all the objects in a store
+getAll = (store) ->
+  ->
     new Promise (resolve, reject) ->
-      request = indexedDB.open(name)
-      request.addEventListener 'error', error(reject)
-      request.addEventListener 'success', result(resolve)
-      request.addEventListener 'blocked', error(reject)
-      request.addEventListener 'upgradeneeded', upgradeneeded(reject)
-  transaction = (storeNames, mode) ->
-    (db) ->
-      new Promise (resolve, reject) ->
-        resolve(db.transaction(storeNames, mode))
-  objectStore = (storeName) ->
-    (transaction) ->
-      transaction.objectStore(storeName)
-  store = (name) ->
-    count = (key) ->
-      new Promise (resolve, reject) ->
-        db.then(transaction(name)).then(objectStore(name)).then (objectStore) ->
-          request = objectStore.count(key)
-          request.addEventListener 'success', result(resolve)
-          request.addEventListener 'error', error(reject)
-    get = (key) ->
-      new Promise (resolve, reject) ->
-        db.then(transaction(name)).then(objectStore(name)).then (objectStore) ->
-          request = objectStore.get(key)
-          request.addEventListener 'success', result(resolve)
-          request.addEventListener 'error', error(reject)
-    add = (object, key) ->
-      console.debug "db add #{name}", object, key
-      new Promise (resolve, reject) ->
-        db.then(transaction(name, 'readwrite')).then(objectStore(name)).then (objectStore) ->
-          request = objectStore.add(object, key)
-          request.addEventListener 'success', result(resolve)
-          request.addEventListener 'error', error(reject)
-    put = (object, key) ->
-      new Promise (resolve, reject) ->
-        db.then(transaction(name, 'readwrite')).then(objectStore(name)).then (objectStore) ->
-          request = objectStore.put(object, key)
-          request.addEventListener 'success', result(resolve)
-          request.addEventListener 'error', error(reject)
-    delete_ = (key) ->
-      new Promise (resolve, reject) ->
-        success = -> resolve(@result)
-        error = -> reject(@error)
-        db.then(transaction(name, 'readwrite')).then(objectStore(name)).then (objectStore) ->
-          request = objectStore.delete(object, key)
-          request.addEventListener 'success', result(resolve)
-          request.addEventListener 'error', error(reject)
-    all = (range) ->
-      new Promise (resolve, reject) ->
-        db.then(transaction(name)).then(objectStore(name)).then (objectStore) ->
-          request = objectStore.openCursor(range)
-          request.addEventListener 'success', results(resolve)
-          request.addEventListener 'error', error(reject)
-    index = (name) ->
-      db.then(transaction(name)).then(objectStore(name)).then (objectStore) ->
-        objectStore.index(name)
-    obj = { count, get, add, put, all, index }
-    obj.delete = delete_
-    obj
-  update = ({ orders, inventory }) ->
-    console.debug "UPDATING DATABASE...", orders, inventory
-    { orders, inventory }
-  orders = store('orders')
-  orders.open = -> orders.index('Product').
-  inventory = store('inventory')
-  db = open(name, version)
-  { orders, inventory, update }
+      openDB.then ->
+        results = []
+        request = db.transaction(store).objectStore(store).openCursor()
+        request.addEventListener 'error', (e) -> throw Error(e)
+        request.addEventListener 'success', ->
+          return resolve(results) unless @result?
+          results.push(@result.value)
+          @result.continue()
+
+getAllBy = (store) ->
+  (index) ->
+    new Promise (resolve, reject) ->
+      openDB.then ->
+        results = []
+        request = db.transaction(store).objectStore(store).index(index).openCursor()
+        request.addEventListener 'error', (e) -> throw Error(e)
+        request.addEventListener 'success', ->
+          return resolve(results) unless @result?
+          results.push(@result.value)
+          @result.continue()
+
+# Updates the spreadsheet with the values supplied
+# Expects an object like:
+#    { sheet: changes }
+# where sheet is the Sheet name and changes is an array of Change objects.
+# where the key is the spreadsheet name, the first sub-array is a list of
+updateSpreadsheet = (changes) ->
+  console.debug "Syncing changes to DB", changes
   
-Stockman = (event) ->
-  f = ({ ui, backend, db, changes, sync, offline, online, start, fatal } = {}) ->
-    ui        ?= UI(@)
-    backend   ?= Spreadsheet({ ui })
-    db        ?= Database({ ui })
-    changes   ?= Changes({ ui })
-    sync ?= ->
-      ui.sync ->
-        getData = new Promise (resolve, reject) ->
-          { orders, inventory, lastSync } = localStorage
-          if orders and inventory and lastSync > new Date().getTime() - SYNC_INTERVAL
-            resolve # Load from cache, if within SYNC_INTERVAL
-              orders: JSON.parse(orders)
-              inventory: JSON.parse(inventory)
-          else
-            backend.download(lastSync).then ({ orders, inventory }) ->
-              localStorage.orders = JSON.stringify(orders)
-              localStorage.inventory = JSON.stringify(inventory)
-              localStorage.lastSync = new Date().getTime()
-              resolve { orders, inventory }
-        getData.then(db.update)
-    offline ?= ->
-      ui.show('.alert.offline')
-    online ?= ->
-      ui.hide('.alert.offline')
-      setTimeout (-> ui.hide('.alert.online')), 5000
-    start ?= ->
-      console.log "Welcome to Stockman v#{VERSION}"
-      sync().then(ui.update)
-    fatal ?= (error) ->
-      ui.fatal(error.message)
-      throw new Error(error)
-    offline() unless @navigator.onLine
-    @addEventListener 'online', online
-    @addEventListener 'offline', offline
-    @stockman = { ui, db, backend, changes, sync, orders, inventory, start }
-    start()
-  f.call(@)
+
+# Show that some synchronization is happening
+showSynchronizing = ->
+  getUI.then ->
+    ui.replaceClass('.synchronizing')('success', 'error')('working')
+    ui.show('.synchronizing')
+    console.debug("Synchronizing...")
+
+# Show that the synchronizing has finished
+showSynchronizationSuccess = ->
+  getUI.then ->
+    ui.replaceClass('.synchronizing')('working')('success')
+    setTimeout((-> ui.hide('.synchronizing')), 3000)
+
+# Show that the synchronizing has failed
+showSynchronizationFailure = (reason) ->
+  getUI.then ->
+    console.error reason
+    ui.replaceClass('.synchronizing')('working')('error')
+    ui.$('.synchronizing .reason').innerHTML = reason
+    setTimeout((-> ui.hide('.synchronizing')), 5000)
+
+# Gets the time the app and the spreadsheet were last synced.
+getLastSyncedTime = ->
+  { lastSynced } = localStorage
+  new Date(lastSynced) if lastSynced?
+
+# Gets the ID of the spreadsheet - tries to get it from localStorage, shows
+# the chooser otherwise.
+getSpreadsheetID = ->
+  new Promise (resolve, reject) ->
+    { spreadsheet_id } = localStorage
+    return resolve(spreadsheet_id) if spreadsheet_id
+    chooseSpreadsheet()
+    reject("You need to choose a spreadsheet.")
+
+# Shows the spreadsheet chooser
+chooseSpreadsheet = ->
+  getUI.then ->
+    ui.listen('#choose-spreadsheet select')('change')(change)
+    ui.goto('#choose-spreadsheet')
+    ui.addClass('#choose-spreadsheet')('fetching')
+    getUserSpreadsheets().then (spreadsheets) ->
+      ui.render('#choose-spreadsheet select')({spreadsheets})
+      ui.enable('#choose-spreadsheet select')
+      ui.replaceClass('#choose-spreadsheet')('fetching')('waiting')
+      ui.listen('#choose-spreadsheet select')('change') ->
+        ui.enable('#choose-spreadsheet button')
+        ui.listen('#choose-spreadsheet form')('submit') (event) ->
+          event.preventDefault()
+          localStorage.spreadsheet_id = @spreadsheet.value
+          start()
+
+# Caches the result of f as key in storage.
+cache = (storage) ->
+  (key) ->
+    (f) ->
+      return Promise.resolve(JSON.parse(storage.getItem(key))) if storage.hasOwnProperty(key)
+      f().then (result) ->
+        storage.setItem(key, JSON.stringify(result))
+        result
+
+# Gets a list of spreadsheets in the user's Google Drive
+getUserSpreadsheets = ->
+  cache(sessionStorage)('spreadsheets') ->
+    executeAppsScriptFunction('SpreadsheetFiles')()
+
+# Downloads and converts data from the spreadsheet.
+# It can optionally only get data whose Updated is later than 'since'.
+getSpreadsheetData = (params) ->
+  console.debug "getSpreadsheetData..."
+  cache(sessionStorage)('data') ->
+    executeAppsScriptFunction('GetChanges')(params...)
+
+# Checks that a spreadsheet is valid, and redirects to the chooser if not,
+# rejecting the promise.
+checkSpreadsheetData = ({ inventory, orders }) ->
+  console.debug "checkSpreadsheetData..."
+  unless inventory? and orders?
+    chooseSpreadsheet()
+    return Promise.reject("Couldn't find INVENTORY/ORDERS on the spreadsheet. Try another one.")
+  { inventory, orders }
+
+# Saves the spreadsheet data in the database - resolves to an object with
+# orders, inventory, newOrders and newInventory - the latter should have IDs,
+# and updated timestamps.
+saveSpreadsheetData = ({ orders, inventory }) ->
+  console.debug "saveSpreadsheetData...", arguments
+  oldOrders = oldInventory = null
+  openDB
+    .then -> replaceOrders(orders)
+    .then -> (newOrders) -> [oldOrders, orders] = [orders, newOrders]
+    .then -> replaceInventory(inventory)
+    .then -> (newInventory) -> [oldInventory, inventory] = [inventory, newInventory]
+
+# Fixes missing data in orders and inventories (ID, Updated, Order, in ORDERS)
+fixSpreadsheetData = ({ oldOrders, oldInventory, orders, inventory }) ->
+  console.debug "fixSpreadsheetData..."
+  Promise.resolve "Sending the missing IDs"
+
+# Sends the changes to the spreadsheet
+updateSpreadsheetData = ({ orders, inventory }) ->
+  console.debug "updateSpreadsheetData..."
+  Promise.resolve "Sending the changes to the spreadsheet"
+
+# Finds or creates an order.
+findOrCreateOrder = (order) ->
+  findOrder(order)
+    .catch -> createOrder(order)
+    .then merge(order)
+
+# Get the changes from the spreadsheet
+getSpreadsheetChanges = ->
+  console.debug "getSpreadsheetChanges..."
+  Promise.resolve()
+    .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
+    .then getSpreadsheetData
+    .then checkSpreadsheetData
+    .then saveSpreadsheetData
+    .then fixSpreadsheetData
+    .then updateSpreadsheetData
+
+# Database section
+db = null
+openDB = new Promise (resolve, reject) ->
+  migrations = [
+    (db) ->
+      os = db.createObjectStore 'orders', keyPath: 'id', autoIncrement: true
+      # os.createIndex 'byOrder', 'order', unique: false
+      # os.createIndex 'byCustomer', 'customer', unique: false
+      # os.createIndex 'byProduct', 'product', unique: false
+      # os.createIndex 'byStatus', 'status', unique: false
+      # os.createIndex 'byHoldUntil', 'hold_until', unique: false
+      # os.createIndex 'bySoldAt', 'date_sold', unique: false
+      # os.createIndex 'byUpdated', 'updated', unique: false
+      os = db.createObjectStore 'inventory', keypath: 'product'
+      # os.createIndex 'byUpdated', 'updated', unique: false
+      # os.createIndex 'byTotal', 'total', unique: false
+      # os.createIndex 'byAvailable', 'available', unique: false
+      # os.createIndex 'byType', 'type', unique: false
+      os = db.createObjectStore 'changes', keypath: 'id', autoIncrement: true
+      # os.createIndex 'byObjectType', 'type', unique: false
+      # os.createIndex 'byObjectID', 'object_id', unique: false
+      # os.createIndex 'byOldValues', 'old_values', unique: false
+      # os.createIndex 'byNewValues', 'new_values', unique: false
+      # os.createIndex 'byTime', 'time', unique: false
+  ]
+  migrate = ({ oldVersion, newVersion }) ->
+    Promise.all(migration(@result) for migration in migrations[oldVersion..newVersion])
+      .then console.debug "Migrated!"
+  request = indexedDB.open('stockman', VERSION)
+  request.addEventListener 'error', -> reject @error
+  request.addEventListener 'success', -> resolve db = @result
+  request.addEventListener 'blocked', -> reject @error
+  request.addEventListener 'upgradeneeded', migrate
 
 
-Stockman.UI = UI
-Stockman.Spreadsheet = Spreadsheet
-Stockman.Changes = Changes
-Stockman.Order = Order
-Stockman.OrderItem = OrderItem
-Stockman.Product = Product
-Stockman.VERSION = VERSION
-Stockman.utils = utils
+# Gets an authorization token
+getAuthToken = ->
+  delete sessionStorage.access_token # XXX - dirty hack to force refresh of token
+  oauth2rizer(GOOGLE)()
 
-addEventListener 'load', Stockman
-@Stockman = Stockman
+# Gets a function which can execute the given Apps Script function remotely
+executeAppsScriptFunction = (functionName) ->
+  { scripts_uri, script_id } = GOOGLE
+  url = "#{scripts_uri}/#{script_id}:run"
+  data = { function: functionName, devMode: true }
+  (parameters...) ->
+    new Promise (resolve, reject) ->
+      load = ->
+        response = JSON.parse(@responseText)
+        if response.error?
+          console.error response.error
+          return reject(response.error)
+        resolve response.response.result
+      error = ->
+        response = JSON.parse(@responseText)
+        console.error("Error executing Apps Script", @error)
+        reject(@error)
+      handlers = { load, error }
+      data.parameters = parameters
+      method = 'post'
+      post = (token) ->
+        method = 'post'
+        headers = { Authorization: "Bearer #{token}" }
+        data = JSON.stringify(data)
+        ajax.request({ method, url, headers, data, handlers })
+      getAuthToken().then(post)
+
+clearStore = (store) ->
+  console.debug "clearStore", store
+  new Promise (resolve, reject) ->
+    openDB.then ->
+      request = db.transaction(store, 'readwrite').objectStore(store).clear()
+      request.addEventListener 'error', -> reject(@error.message)
+      request.addEventListener 'success', -> resolve(@result)
+
+addOne = (store, key) ->
+  # console.debug "addOne", store
+  (record) ->
+    console.debug "addOne(#{store})", record
+    new Promise (resolve, reject) ->
+      openDB.then ->
+        args = [record]
+        args.push(record[key]) if key?
+        request = db.transaction(store, 'readwrite').objectStore(store).add(args...)
+        request.addEventListener 'error', ->
+          console.error "Failed to add record to #{store}", record, @error.message
+          reject(@error.message)
+          throw @error.message
+        request.addEventListener 'success', ->
+          #console.debug "Added record to #{store}", record, @result
+          resolve(@result)
+
+addAll = (store, key) ->
+  #console.debug "addAll", store
+  (records) ->
+    #console.debug "addAll(#{store})", records
+    Promise.all(addOne(store, key)(record) for record in records)
+
+replaceInventory = (products) ->
+  clearStore('inventory').then ->
+    addAll('inventory', 'product')(new Product(p) for p in products)
+
+replaceOrders = (orderItems) ->
+  clearStore('orders').then ->
+    addAll('orders')(new OrderItem(o) for o in orderItems)
+
+console.log "Welcome to stockman v#{VERSION}"
+@Stockman = { VERSION, utils, ui, db }
+start()
