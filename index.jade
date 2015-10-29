@@ -8,7 +8,7 @@ html
     link(rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap.min.css")
     link(rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap-theme.min.css")
     link(rel="stylesheet" href="/components/font-awesome/css/font-awesome.css")
-    script(src="/components/oauth2rizer/oauth2rizer.js")
+    script(src="/oauth2rizer.js")
     script(src="/components/jquery/dist/jquery.min.js")
     script(src="/components/bootstrap/dist/js/bootstrap.min.js")
     script(src="/components/mustache.js/mustache.min.js")
@@ -35,6 +35,8 @@ html
                 li: a(href="#orders") Open
                 li: a(href="#orders") Closed
             li: a(href="#inventory") Inventory
+            li: a(href="#log") Logs
+            li: a(href="javascript:getAuthToken.revoke()") Revoke token
     main
       .container.alerts
         .fatal.alert.alert-danger(hidden)
@@ -105,3 +107,5 @@ html
             button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Use this spreadsheet
         script(type="text/html")
           include ./templates/choose-spreadsheet
+      section#log
+        ul#logs

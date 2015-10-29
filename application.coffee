@@ -1,5 +1,3 @@
-"use strict"
-
 VERSION = 1
 DEBUG = 1
 
@@ -30,7 +28,14 @@ ajax =
       xhr.setRequestHeader(k, v) for own k, v of headers
       xhr.addEventListener(k, v) for own k, v of handlers
       xhr.send(data)
-debug = (args...) -> console.debug(args...) if DEBUG; args[0]
+debug = (args...) ->
+  if DEBUG
+    console.debug(args...)
+    ul = document.getElementById('logs')
+    li = document.createElement('LI')
+    li.innerHTML = "<pre>#{JSON.stringify(args)}</pre>"
+    ul.insertBefore(li, ul.firstChild)
+  args
 rejolve = (x) -> Promise[x? and 'resolve' or 'reject'](x)
 urlencode = (o) -> ([k, v].map(encodeURIComponent).join('=') for own k, v of o).join('&')
 taskChain = (tasks) -> tasks.reduce ((p, t) -> p.then(t)), Promise.resolve()
@@ -179,7 +184,6 @@ start = ->
     .then -> ui.listen('#orders')('input')(ordersHandler)
     .then -> ui.listen('#orders')('submit')(ordersHandler)
     .then -> ui.listen('#inventory')('click')(inventoryHandler)
-    .then -> ui.goto('#orders') unless location.hash is '#choose-spreadsheet'
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -219,7 +223,7 @@ getOrders = ->
       { customer } = orderItem
       order = orders[order_id] ?= new Order({ customer, id })
       order.orderItems.push(orderItem)
-    (v for own k, v of orders)
+    (v for own k, v of orders when v.status() isnt 'CLOSED')
 
 # Gets a function to merge the second argument into the first
 merge = (first) ->
@@ -285,7 +289,8 @@ showSynchronizationSuccess = ->
 # Show that the synchronizing has failed
 showSynchronizationFailure = (reason) ->
   getUI.then ->
-    console.error JSON.stringify(reason)
+    console.error reason
+    debug reason, Error()
     ui.replaceClass('.synchronizing')('working')('error')
     ui.$('.synchronizing .reason').innerHTML = reason
     setTimeout((-> ui.hide('.synchronizing')), 5000)
@@ -325,21 +330,21 @@ chooseSpreadsheet = ->
 cache = (storage) ->
   (key) ->
     (f) ->
-      return Promise.resolve(JSON.parse(storage.getItem(key))) if storage.hasOwnProperty(key)
+      return Promise.resolve(JSON.parse(storage.getItem(key))) if storage[key]
       f().then (result) ->
         storage.setItem(key, JSON.stringify(result)) if DEBUG?
         result
 
 # Gets a list of spreadsheets in the user's Google Drive
 getUserSpreadsheets = ->
-  cache(sessionStorage)('spreadsheets') ->
+  cache(localStorage)('spreadsheets') ->
     executeAppsScriptFunction('SpreadsheetFiles')()
 
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
 getSpreadsheetData = (params) ->
   debug "getSpreadsheetData..."
-  cache(sessionStorage)('data') ->
+  cache(localStorage)('data') ->
     executeAppsScriptFunction('GetChanges')(params...)
 
 # Checks that a spreadsheet is valid, and redirects to the chooser if not,
