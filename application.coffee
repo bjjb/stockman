@@ -52,6 +52,7 @@ OrderItem = (data) ->
   @[k] = new Date(@[k]) for k in ['updated', 'date_sold', 'hold_until'] when @[k]
   @
 OrderItem::getOrderID = -> @order ? @customer
+OrderItem::getPrice = "$ #{Number(@price ? 0).toFixed(2)}"
 OrderItem::bsClass = ->
   switch @status
     when 'SOLD' then 'success'
@@ -68,17 +69,22 @@ OrderItem::isSold = -> @status is 'SOLD'
 OrderItem::isOpen = -> @status is 'OPEN'
 OrderItem::isHold = -> @status is 'HOLD'
 OrderItem::isShort = -> @status is 'SHORT'
+OrderItem::context = ->
+  switch @status
+    when 'OPEN' then 'info'
+    when 'HOLD' then 'warning'
+    when 'SHORT' then 'danger'
+    when 'SOLD' then 'success'
+    else 'default'
+
 Product = (data) ->
   @[k] = v for own k, v of data when v isnt ''
   @[k] = new Date(@[k]) for k in ['updated'] when @[k]
   @
+
 Order = ({ @customer, @id }) ->
   @orderItems = []
   @
-Order::price = ->
-  p = 0
-  p + (i.price ? 0) for i in @orderItems when i.status is 'SOLD'
-  p.toFixed(2)
 Order::status = ->
   return 'CLOSED' if @orderItems?.every (i) -> i.status in ['SOLD']
   'OPEN'

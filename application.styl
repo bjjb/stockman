@@ -77,19 +77,24 @@ button .fa, button .glyphicon
   form.filter
     margin-top 0.5em
     margin-bottom 0.5em
-  .qty, .product
-    font-size 1.2em
-    margin-top 0.5em
-    margin-bottom 0.5em
-  .product
-    font-weight bold
-  p.qty
-    text-align right
-  button.action
-    min-width: 6em
-  .order.CLOSED
-    display: none
+  .order-item
+    form
+      display none
+      text-align right
+      .btn-group
+        //
+  .order-item.OPEN
+    form.open
+      display inherit
+  .order-item.HOLD
+    form.hold
+      display inherit
   .order-item.SOLD
-    color green
-    .product
-      text-decoration line-through
+    form.sold
+      display inherit
+      small.price
+        padding-right: 1em
+  .order-item.SHORT
+    form.short
+      display inherit
+        
