@@ -179,7 +179,7 @@ start = ->
     .then -> ui.listen('#orders')('input')(ordersHandler)
     .then -> ui.listen('#orders')('submit')(ordersHandler)
     .then -> ui.listen('#inventory')('click')(inventoryHandler)
-    .then -> ui.goto('#orders')
+    .then -> ui.goto('#orders') unless location.hash is '#choose-spreadsheet'
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -285,7 +285,7 @@ showSynchronizationSuccess = ->
 # Show that the synchronizing has failed
 showSynchronizationFailure = (reason) ->
   getUI.then ->
-    console.error reason
+    console.error JSON.stringify(reason)
     ui.replaceClass('.synchronizing')('working')('error')
     ui.$('.synchronizing .reason').innerHTML = reason
     setTimeout((-> ui.hide('.synchronizing')), 5000)
@@ -303,6 +303,7 @@ getSpreadsheetID = ->
     return resolve(spreadsheet_id) if spreadsheet_id
     chooseSpreadsheet()
     reject("You need to choose a spreadsheet.")
+localStorage.spreadsheet_id = "1hFU6T4UsSHaD8GMTpPEFMFcbQbHtsqX-jhQNXX-00bI"
 
 # Shows the spreadsheet chooser.
 chooseSpreadsheet = ->
