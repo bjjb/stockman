@@ -39,14 +39,14 @@ html
             li: a(href="javascript:getAuthToken.revoke()") Revoke token
     main
       .container.alerts
-        .fatal.alert.alert-danger(hidden)
+        .alert.fatal.alert.alert-danger.fade
           p
             span.message
-        .offline.alert.alert-warning(hidden)
+        .alert.offline.alert.alert-warning.fade
           p
             span.message Currently offline
             span.glyphicon.glyphicon-warning-sign.pull-right
-        .synchronizing
+        .alert.synchronizing.fade
           p.alert.working.alert-info
             span.working.message Synchronizing...
             span.working.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
@@ -64,10 +64,9 @@ html
           h1 Orders
         form.form.filter
           .input-group.input-group-lg
-            span.input-group-addon.glyphicon.glyphicon-search
-            input.form-control(type="search" name="filter" placeholder="Find a customer")
-            .input-group-btn
-              button.btn.btn-default(type="button" name="filter") Filter
+            label.input-group-addon(for="filter-input")
+              span.glyphicon.glyphicon-search
+            input#filter-input.form-control(type="search" name="filter" placeholder="Find a customer")
         .orders(data-template='#orders script.orders')
         script.orders(type='text/html')
           include ./templates/orders

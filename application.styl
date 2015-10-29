@@ -1,4 +1,6 @@
-green = #3c763d
+html
+  overflow-y scroll
+
 main>section
   display none
   &:target
@@ -29,9 +31,13 @@ button .fa, button .glyphicon
   100%
     transform rotate(359deg);
 
-.synchronizing
-  p.alert
-    display none
+.alert
+  position absolute
+  top 0
+  left 0
+  right 0
+  margin: 1em
+  opacity 0.8
 .synchronizing.working
   display inherit
   p.working
@@ -83,6 +89,7 @@ button .fa, button .glyphicon
       text-align right
       .btn-group
         //
+  // Show the relevant forms in order items
   .order-item.OPEN
     form.open
       display inherit
@@ -97,4 +104,9 @@ button .fa, button .glyphicon
   .order-item.SHORT
     form.short
       display inherit
-        
+  .order-item.selling
+    form.open, form.hold, form.short, form.sold
+      display none
+    form.selling
+      display inherit
+

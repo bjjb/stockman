@@ -11,7 +11,7 @@
         ul.list-group
           | {{#items}}
           .li.list-group-item.order-item(id="order-item-{{id}}" class="list-group-item-{{context}} {{status}} {{commentClass}}")
-            .container
+            .container-fluid
               .row
                 .col-xs-1
                   small.status {{ status }}
@@ -27,11 +27,11 @@
                         span.caret
                         span.sr-only Toggle dropdown
                       ul.dropdown-menu
-                        li: a(href='javascript:void') Sell
-                        li: a(href='javascript:void') Hold
-                        li: a(href='javascript:void') Short
+                        li: a(href='javascript:void(0)') Sell
+                        li: a(href='javascript:void(0)') Hold
+                        li: a(href='javascript:void(0)') Short
                         li.divider
-                        li: a(href='javascript:void') Delete
+                        li: a(href='javascript:void(0)') Delete
                   form.form.form-inline.sold
                     small.price {{getPrice}}
                     .btn-group
@@ -43,26 +43,34 @@
                         span.caret
                         span.sr-only Toggle dropdown
                       ul.dropdown-menu
-                        li: a(href='javascript:void') Open
-                        li: a(href='javascript:void') Short
+                        li: a(href='javascript:void(0)') Open
+                        li: a(href='javascript:void(0)') Short
                         li.divider
-                        li: a(href='javascript:void') Delete
+                        li: a(href='javascript:void(0)') Delete
                   form.form.form-inline.short
+                    .btn-group
+                      button.btn.btn-primary(type="button" name="action") Open
+                      button.btn.dropdown-toggle.btn-primary(type="button" name="chooseAction" data-toggle="dropdown")
+                        span.caret
+                        span.sr-only Toggle dropdown
+                      ul.dropdown-menu
+                        li: a(href='javascript:void(0)') Open
+                        li: a(href='javascript:void(0)') Hold
+                        li.divider
+                        li: a(href='javascript:void(0)') Delete
                   form.form.form-inline.selling
                     .input-group
                       span.input-group-addon $
                       input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" )
                       .input-group-btn
-                        button.btn.btn-danger.action(type='button' name="action") {{action}}
-                        button.btn.btn-danger.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
+                        button.btn.btn-success.action(type='button' name="action") {{action}}
+                        button.btn.btn-success.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
                           span.caret
                           span.sr-only Choose action
                         ul.dropdown-menu.dropdown-menu-right
-                          li
-                            a.action(href='sell' data-action="sell") Sell
-                            a.action(href='hold' data-action="hold") Hold
-                            a.action(href='short' data-action="short") Short
-                            a.action(href='delete' data-action="delete") Delete
+                          li: a.action(href='javascript:void(0)' data-action="sell") Cancel
+                          li.divider
+                          li: a.action(href='javascript:void(0)' data-action="delete") Delete
           | {{/items}}
         p.comment {{comment}}
   | {{/orders}}
