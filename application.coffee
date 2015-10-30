@@ -36,6 +36,7 @@ debug = (args...) ->
     li.innerHTML = "<pre>#{JSON.stringify(args)}</pre>"
     ul.insertBefore(li, ul.firstChild)
   args
+
 rejolve = (x) -> Promise[x? and 'resolve' or 'reject'](x)
 urlencode = (o) -> ([k, v].map(encodeURIComponent).join('=') for own k, v of o).join('&')
 taskChain = (tasks) -> tasks.reduce ((p, t) -> p.then(t)), Promise.resolve()

@@ -39,15 +39,24 @@ copy = (files...) ->
   (d = 'DIST') ->
     { createReadStream, createWriteStream } = require 'fs'
     createReadStream("#{SRC}/#{f}").pipe(createWriteStream("#{d}/#{f}")) for f in files
+mustache = (view, src, dest) ->
+  new Promise (resolve, reject) ->
+    { readFile, writeFile } = require 'fs'
+    readFile src, 'utf8', (error, data) ->
+      writeFile dest, require('mustache').render(data, view), resolve
 dist   = -> mkdir(DIST).then(copy('favicon.ico'))
 html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
 css    = -> exec "stylus -o #{DIST} -m  #{SRC}/*.styl"
 js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
-build  = -> Promise.all [dist(), html(), css(), js()]
+appcache = ->
+  { name, version } = require './package'
+  date = new Date().toISOString()
+  mustache({ name, version, date }, "#{SRC}/index.appcache", "#{DIST}/index.appcache")
+build  = -> Promise.all [dist(), appcache(), html(), css(), js()]
 watch  = -> Promise.all [build(), watch.html(), watch.css(), watch.js()]
-watch.html   = -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
-watch.css    = -> exec "stylus -w -o #{DIST} -m  #{SRC}/*.styl"
-watch.js     = -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
+watch.html     = -> appcache().then -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
+watch.css      = -> appcache().then -> exec "stylus -w -o #{DIST} -m  #{SRC}/*.styl"
+watch.js       = -> appcache().then -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
 server  = -> build().then Promise.race([watch(), serve()])
 serve = -> require('./server')(staticDirs: ['public'], port: 3000, logLevel: 'dev')
 
