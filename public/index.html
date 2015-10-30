@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utuf8">
+    <title>St〇ck Manager</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link rel="stylesheet" href="/application.css">
+    <link rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/components/bootstrap/dist/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="/components/font-awesome/css/font-awesome.css">
+    <script src="/oauth2rizer.js"></script>
+    <script src="/components/jquery/dist/jquery.min.js"></script>
+    <script src="/components/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="/components/mustache.js/mustache.min.js"></script>
+    <script src="/application.js"></script>
+  </head>
+  <body>
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+        <header class="navbar-header">
+          <button type="button" data-toggle="collapse" data-target="#navbar" class="navbar-toggle collapsed"><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a href="/" class="navbar-brand">L&S Stock</a>
+        </header>
+        <div id="navbar" class="collapse navbar-collapse">
+          <ul class="nav navbar-nav navbar-right">
+            <!-- TODO: set active class on li-->
+            <li class="dropdown"><a href="#" data-toggle="dropdown" class="dropdown-toggle">Orders<span class="caret"></span></a>
+              <ul class="dropdown-menu">
+                <li><a href="#orders">All</a></li>
+                <li><a href="#orders">Open</a></li>
+                <li><a href="#orders">Closed</a></li>
+              </ul>
+            </li>
+            <li><a href="#inventory">Inventory</a></li>
+            <li><a href="#log">Logs</a></li>
+            <li><a href="javascript:getAuthToken.revoke()">Revoke token</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <!-- The main element-->
+    <main class="paged">
+      <div class="container alerts">
+        <div class="fatal alert alert-danger">
+          <p><span class="message">&nbsp;</span></p>
+        </div>
+        <div class="offline alert alert-warning">
+          <p><span class="message">Currently offline</span><span class="glyphicon glyphicon-warning-sign pull-right"></span></p>
+        </div>
+        <div class="online alert alert-info">
+          <p><span class="message">We're back online!</span><span class="glyphicon glyphicon-cloud pull-right"></span></p>
+        </div>
+        <div class="synchronizing">
+          <div class="alert working alert-info"><span class="working message">Synchronizing...</span><span class="working spinner glyphicon glyphicon-refresh glyphicon-spin pull-right"></span></div>
+          <div class="alert error alert-danger"><span class="error glyphicon glyphicon-warning-sign pull-right"></span>
+            <h4>Synchronization failed!</h4>
+            <p class="reason">&nbsp;</p>
+          </div>
+          <div class="alert success alert-success"><span class="success message">All data is up to date.</span><span class="success glyphicon glyphicon-cloud pull-right"></span></div>
+        </div>
+      </div>
+      <!-- The orders page-->
+      <section id="orders" class="page container-fluid">
+        <div class="page-header">
+          <h1>Orders</h1>
+        </div>
+        <form name="filter" class="form filter">
+          <div class="form-group">
+            <div class="input-group input-group-lg">
+              <label for="filter-input" class="input-group-addon"><span class="glyphicon glyphicon-search"></span></label>
+              <input id="filter-input" type="search" name="filter" placeholder="Find a customer" class="form-control input-lg">
+            </div>
+          </div>
+        </form>
+        <div data-template="#orders script.orders" class="orders"></div>
+        <script type="text/html" class="orders">
+          <div id="order-panels" class="panel-group">{{#orders}}
+            <div id="order-{{id}}" class="order panel {{status}} panel-{{context}}">
+              <div class="panel-heading">
+                <h4 class="panel-title"><a data-toggle="collapse" data-parent="#order-panels" href="#order-collapse-{{id}}"><span class="customer">{{customer}}</span><small class="status pull-right">{{items.open.length}} {{status}}</small></a></h4>
+              </div>
+              <div id="order-collapse-{{id}}" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <ul class="list-group">{{#items}}
+                    <div id="order-item-{{id}}" data-order="{{order.id}}" class="li list-group-item order-item list-group-item-{{context}} {{status}}{{#comment}} comment{{/comment}}">
+                      <div class="container-fluid">
+                        <div class="row">
+                          <div class="col-sm-4">
+                            <div class="details"><span class="qty">{{qty}}</span><small>×</small><span class="product">{{product}}</span></div>
+                          </div>
+                          <div class="col-sm-8">
+                            <form class="form form-inline open">
+                              <div class="btn-group">
+                                <button data-orderitem="{{id}}" data-action="Sell" type="button" name="action" class="action btn btn-success">Sell</button>
+                                <button type="button" name="chooseAction" data-toggle="dropdown" class="btn dropdown-toggle btn-success"><span class="caret"></span><span class="sr-only">Toggle dropdown</span></button>
+                                <ul class="dropdown-menu">
+                                  <li><a data-orderitem="{{id}}" data-action="Sell" href="javascript:void(0)">Sell</a></li>
+                                  <li><a data-orderitem="{{id}}" data-action="Hold" href="javascript:void(0)">Hold</a></li>
+                                  <li><a data-orderitem="{{id}}" data-action="Short" href="javascript:void(0)">Short</a></li>
+                                  <li class="divider">
+                                    <li><a data-orderitem="{{id}}" data-action="Delete" href="javascript:void(0)">Delete</a></li>
+                                  </li>
+                                </ul>
+                              </div>
+                            </form>
+                            <form class="form form-inline sold"><small class="price">
+                                <output name="price" value="{{getPrice}}" class="price">{{getPrice}}</output></small>
+                              <div class="btn-group">
+                                <button data-orderitem="{{id}}" data-action="Undo" type="button" name="action" class="action btn btn-default">Undo</button>
+                              </div>
+                            </form>
+                            <form class="form form-inline hold">
+                              <div class="btn-group">
+                                <button data-orderitem="{{id}}" data-action="Open" type="button" name="action" class="btn btn-primary">Open</button>
+                                <button type="button" name="chooseAction" data-toggle="dropdown" class="btn dropdown-toggle btn-primary"><span class="caret"></span><span class="sr-only">Toggle dropdown</span></button>
+                                <ul class="dropdown-menu">
+                                  <li><a data-orderitem="{{id}}" data-action="Open" href="javascript:void(0)">Open</a></li>
+                                  <li><a data-orderitem="{{id}}" data-action="Short" href="javascript:void(0)">Short</a></li>
+                                  <li class="divider">
+                                    <li><a data-orderitem="{{id}}" data-action="Delete" href="javascript:void(0)">Delete</a></li>
+                                  </li>
+                                </ul>
+                              </div>
+                            </form>
+                            <form class="form form-inline short">
+                              <div class="btn-group">
+                                <button data-orderitem="{{id}}" data-action="Open" type="button" name="action" class="action btn btn-primary">Open</button>
+                                <button type="button" name="chooseAction" data-toggle="dropdown" class="btn dropdown-toggle btn-primary"><span class="caret"></span><span class="sr-only">Toggle dropdown</span></button>
+                                <ul class="dropdown-menu">
+                                  <li><a data-orderitem="{{id}}" data-action="Open" href="javascript:void(0)">Open</a></li>
+                                  <li><a data-orderitem="{{id}}" data-action="Hold" href="javascript:void(0)">Hold</a></li>
+                                  <li class="divider">
+                                    <li><a data-orderitem="{{id}}" data-action="Delete" href="javascript:void(0)">Delete</a></li>
+                                  </li>
+                                </ul>
+                              </div>
+                            </form>
+                            <form name="sell" data-order="{{order.id}}" class="form form-inline selling">
+                              <div class="input-group"><span class="input-group-addon">$</span>
+                                <input type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-orderitem="{{id}}" class="form-control">
+                                <div class="input-group-btn">
+                                  <button data-orderitem="{{id}}" data-action="Sell" type="button" name="sell" disabled class="action btn btn-success action">Sell</button>
+                                  <button type="button" data-toggle="dropdown" class="btn btn-success dropdown-toggle {{status}}"><span class="caret"></span><span class="sr-only">Choose action</span></button>
+                                  <ul class="dropdown-menu dropdown-menu-right">
+                                    <li><a data-orderitem="{{id}}" data-action="sell" href="javascript:void(0)">Cancel</a></li>
+                                    <li class="divider"></li>
+                                    <li><a data-orderitem="{{id}}" data-action="delete" href="javascript:void(0)">Delete</a></li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    </div>{{/items}}
+                  </ul>
+                  <p class="comment">{{comment}}</p>
+                </div>
+                <div class="panel-footer">
+                  <div class="row">
+                    <output name="total" value="{{getTotal}}" class="total">{{getTotal}}</output>
+                  </div>
+                </div>
+              </div>
+            </div>{{/orders}}
+          </div>
+        </script>
+      </section>
+      <!-- The inventory page-->
+      <section id="inventory" class="page container-fluid">
+        <div class="page-header">
+          <h1>Inventory</h1>
+        </div>
+        <table class="table table-striped table-condensed">
+          <thead>
+            <tr>
+              <th class="product">  Name</th>
+              <th class="total">    Total</th>
+              <th class="available">Available</th>
+              <th class="actions"></th>
+            </tr>
+          </thead>
+          <tbody data-template="#inventory script.product" class="products"></tbody>
+        </table>
+        <script type="text/html" class="product">{{#products}}
+          <tr id="{{ID}}">
+            <td class="product">  {{product}}</td>
+            <td class="total">    {{total}}</td>
+            <td class="available">{{available}}</td>
+            <td class="actions"></td>
+          </tr>{{/products}}
+        </script>
+      </section>
+      <!-- Page shown when the user has to chose a spreadsheet-->
+      <section id="choose-spreadsheet" class="page container-fluid">
+        <div class="page-header">
+          <h1>Choose your spreadsheet</h1>
+        </div>
+        <div class="fetching">
+          <p class="lead">
+            <Downloading>a list of your spreadsheets from your Google Drive...</Downloading>
+          </p>
+        </div>
+        <div class="error">
+          <p class="lead danger">
+            Uh oh! Failed to get your spreadsheets!
+            span.reason
+          </p>
+        </div>
+        <div class="waiting">
+          <form class="form">
+            <div class="form-group">
+              <label for="spreadsheet-select" class="control-label">Choose your spreadsheet</label><span class="spinner glyphicon glyphicon-refresh glyphicon-spin pull-right"></span>
+              <select id="spreadsheet-select" disabled name="spreadsheet" data-template="#choose-spreadsheet script" class="form-control input-lg"></select>
+              <div class="help-block help">
+                Once you have your spreadsheet linked, the data will be used
+                here
+              </div>
+            </div>
+            <button type="submit" disabled class="btn btn-lg btn-block btn-default">Use this spreadsheet</button>
+          </form>
+        </div>
+        <script type="text/html">
+          <option>Select a spreadsheet</option>{{#spreadsheets}}
+          <option value="{{id}}">{{{name}}}</option>{{/spreadsheets}}
+        </script>
+      </section>
+      <!-- Logs page-->
+      <section id="log" class="page">
+        <ul id="logs"></ul>
+      </section>
+    </main>
+  </body>
+</html>

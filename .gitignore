@@ -1,10 +1,5 @@
 npm-debug.log
+divshot-debug.log
 node_modules
-credentials.json
-*.html
-*.js
-*.css
-*.*.map
-public
 .divshot-cache
 .*.sw?

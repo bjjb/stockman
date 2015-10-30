@@ -1,0 +1,36 @@
+{
+  "name": "oauth2rizer",
+  "version": "0.0.2",
+  "description": "An OAuth2 helper for JavaScript clients and servers",
+  "main": "oauth2rizer.js",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bjjb/oauth2rizer.git"
+  },
+  "keywords": [
+    "OAuth2",
+    "rfc6749"
+  ],
+  "author": {
+    "name": "bjjb",
+    "email": "jj@bjjb.org",
+    "url": "http://bjjb.github.io/"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bjjb/oauth2rizer/issues"
+  },
+  "homepage": "https://github.com/bjjb/oauth2rizer#readme",
+  "devDependencies": {
+    "coffee-script": "^1.10.0",
+    "jade": "^1.11.0",
+    "mocha": "^2.3.3",
+    "morgan": "^1.6.1"
+  },
+  "dependencies": {
+    "bluebird": "^2.10.2"
+  }
+}

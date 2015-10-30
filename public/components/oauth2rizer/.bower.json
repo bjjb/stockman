@@ -1,0 +1,40 @@
+{
+  "name": "oauth2rizer",
+  "description": "An OAuth2 helper for JavaScript clients and servers",
+  "main": "oauth2rizer.js",
+  "authors": [
+    {
+      "name": "bjjb",
+      "email": "jj@bjjb.org",
+      "url": "http://bjjb.github.io/"
+    }
+  ],
+  "license": "ISC",
+  "keywords": [
+    "OAuth2",
+    "rfc6749"
+  ],
+  "moduleType": [
+    "globals",
+    "node"
+  ],
+  "homepage": "http://github.com/bjjb/oauth2rizer",
+  "ignore": [
+    "**/.*",
+    "*.coffee",
+    "Cakefile",
+    "node_modules",
+    "test"
+  ],
+  "version": "0.0.2",
+  "_release": "0.0.2",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.0.2",
+    "commit": "4f23ef1695da5341b881539fc4ba729c207dc6f1"
+  },
+  "_source": "git://github.com/bjjb/oauth2rizer.git",
+  "_target": "~0.0.2",
+  "_originalSource": "oauth2rizer",
+  "_direct": true
+}
