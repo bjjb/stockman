@@ -209,6 +209,7 @@ start = ->
     .then -> ui.listen('#orders')('input')(ordersHandler)
     .then -> ui.listen('#orders')('submit')(ordersHandler)
     .then -> ui.listen('#inventory')('click')(inventoryHandler)
+    .then -> ui.goto('#orders')
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
