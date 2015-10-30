@@ -516,11 +516,9 @@ filterOrders = (match) ->
 
 setOrderItemAction = (form, action) ->
   button = form.querySelector('button.action')
-  console.log button
   button.dataset.action = action
   button.innerHTML = action
   buttons = form.querySelectorAll('button')
-  console.log buttons
   context = switch action
     when "Sell" then "success"
     when "Hold" then "warning"
@@ -530,7 +528,7 @@ setOrderItemAction = (form, action) ->
     else throw "Can't get context for action #{action}"
   for button in buttons
     button.classList.remove('btn-success')
-    button.classList.remove('btn-warn')
+    button.classList.remove('btn-warning')
     button.classList.remove('btn-primary')
     button.classList.remove('btn-danger')
     button.classList.add("btn-#{context}")
