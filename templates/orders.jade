@@ -66,7 +66,7 @@
                       span.input-group-addon $
                       input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-orderitem="{{id}}")
                       .input-group-btn
-                        button.action.btn.btn-success.action(data-orderitem="{{id}}" data-action="Sell" type='button' name="sell" disabled) Sell
+                        button.action.btn.btn-success.action(data-orderitem="{{id}}" data-action="Sell" type='submit' name="sell" disabled) Sell
                         button.btn.btn-success.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
                           span.caret
                           span.sr-only Choose action
@@ -81,9 +81,10 @@
 
       .panel-footer
         .row
-          form.form.form-inline
-            .form-group
-              label.control-label Total
-              output.form-control-static.total(name="total" value="{{getTotal}}") {{getTotal}}
+          .col-2.col-offset-10.col-xs-6.col-xs-offset-6
+            form.total.form.form-inline.pull-right
+              .form-group
+                label.control-label Total
+                output.form-control-static.total(name="total" value="{{getTotal}}") {{getTotal}}
 
   | {{/orders}}

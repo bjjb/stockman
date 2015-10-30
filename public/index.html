@@ -138,7 +138,7 @@
                               <div class="input-group"><span class="input-group-addon">$</span>
                                 <input type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-orderitem="{{id}}" class="form-control">
                                 <div class="input-group-btn">
-                                  <button data-orderitem="{{id}}" data-action="Sell" type="button" name="sell" disabled class="action btn btn-success action">Sell</button>
+                                  <button data-orderitem="{{id}}" data-action="Sell" type="submit" name="sell" disabled class="action btn btn-success action">Sell</button>
                                   <button type="button" data-toggle="dropdown" class="btn btn-success dropdown-toggle {{status}}"><span class="caret"></span><span class="sr-only">Choose action</span></button>
                                   <ul class="dropdown-menu dropdown-menu-right">
                                     <li><a data-orderitem="{{id}}" data-action="sell" href="javascript:void(0)">Cancel</a></li>
@@ -157,12 +157,14 @@
                 </div>
                 <div class="panel-footer">
                   <div class="row">
-                    <form class="form form-inline">
-                      <div class="form-group">
-                        <label class="control-label">Total</label>
-                        <output name="total" value="{{getTotal}}" class="form-control-static total">{{getTotal}}</output>
-                      </div>
-                    </form>
+                    <div class="col-2 col-offset-10 col-xs-6 col-xs-offset-6">
+                      <form class="total form form-inline pull-right">
+                        <div class="form-group">
+                          <label class="control-label">Total</label>
+                          <output name="total" value="{{getTotal}}" class="form-control-static total">{{getTotal}}</output>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 </div>
               </div>

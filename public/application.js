@@ -739,11 +739,11 @@
     }
     if (type === 'submit') {
       event.preventDefault();
-      if (target.name === 'filter') {
-        filterOrders(target.value);
-      }
-      if (target.name === 'price') {
-        return updateOrderItemPrice(target.price);
+      switch (target.name) {
+        case 'filter':
+          return filterOrders(target.value);
+        default:
+          throw "Unhandled #orders submit: " + target.name;
       }
     }
   };

@@ -94,6 +94,9 @@ button .glyphicon {
   display: none;
   text-align: right;
 }
+#orders .order-item .details small {
+  margin: auto 1em;
+}
 #orders .order-item.OPEN form.open {
   display: inherit;
 }
@@ -117,6 +120,9 @@ button .glyphicon {
 }
 #orders .order-item.selling form.selling {
   display: inherit;
+}
+#orders .order .total .form-group {
+  margin-bottom: 0;
 }
 #orders .order output {
   display: inline;

@@ -193,10 +193,9 @@ ordersHandler = (event) ->
       filterOrders(target.value)
   if type is 'submit'
     event.preventDefault()
-    if target.name is 'filter'
-      filterOrders(target.value)
-    if target.name is 'price'
-      updateOrderItemPrice(target.price)
+    switch target.name
+      when 'filter' then filterOrders(target.value)
+      else throw "Unhandled #orders submit: #{target.name}"
     
 
 inventoryHandler = (event) ->
