@@ -176,7 +176,7 @@ ordersHandler = (event) ->
       form = target
       form = form.parentElement until form.nodeName is 'FORM'
       setOrderItemAction(form, dataset.action)
-    if nodeName is 'BUTTON' and dataset.action?
+    if nodeName is 'BUTTON' and target.type is 'button' and dataset.action?
       { orderitem } = dataset
       event.preventDefault()
       switch dataset.action
@@ -184,7 +184,8 @@ ordersHandler = (event) ->
         when 'Open' then openOrderItem(target)
         when 'Hold' then holdOrderItem(target)
         when 'Short' then shortOrderItem(target)
-        when 'Undo' then undoLastOrderItemAction(target)
+        when 'Delete' then deleteOrderItem(target)
+        when 'Undo' then unsellOrderItem(target)
         when 'Checkout' then checkoutOrderItem(target)
   if type is 'input'
     if target.name is 'price'
@@ -194,7 +195,8 @@ ordersHandler = (event) ->
   if type is 'submit'
     event.preventDefault()
     switch target.name
-      when 'filter' then filterOrders(target.value)
+      when 'filter' then filterOrders(target.filter.value)
+      when 'sell' then soldOrderItem(target)
       else throw "Unhandled #orders submit: #{target.name}"
     
 
@@ -559,6 +561,9 @@ updateOrderPrice = (order) ->
   output = ui.$("#order-#{order} output[name='total']")
   output.setAttribute('value', total)
   output.innerHTML = "$ #{total.toFixed(2)}"
+
+soldOrderItem = (form) ->
+  { order, orderItem } = form.dataset
 
 console.log "Welcome to stockman v#{VERSION}"
 @Stockman = { VERSION, utils, ui, db }

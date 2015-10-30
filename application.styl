@@ -116,6 +116,13 @@ button .fa, button .glyphicon
       margin-bottom: 0
     output
       display inline
+      &:empty:before
+        content "$ 0.00"
+  form.total
+    output, label
+      font-size large
+    output
+      margin-left 1em
 
   // The total in the footer
 

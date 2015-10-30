@@ -127,4 +127,14 @@ button .glyphicon {
 #orders .order output {
   display: inline;
 }
+#orders .order output:empty:before {
+  content: "$ 0.00";
+}
+#orders form.total output,
+#orders form.total label {
+  font-size: large;
+}
+#orders form.total output {
+  margin-left: 1em;
+}
 /*# sourceMappingURL=application.css.map */
