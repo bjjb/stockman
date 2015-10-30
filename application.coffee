@@ -85,6 +85,9 @@ Product = (data) ->
   @[k] = v for own k, v of data when v isnt ''
   @[k] = new Date(@[k]) for k in ['updated'] when @[k]
   @
+Product::status = ->
+  if @available is 0 then return 'warning'
+  if @available < 0 then return 'danger'
 
 Order = ({ @customer, @id }) ->
   @orderItems = []

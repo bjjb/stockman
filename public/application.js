@@ -260,6 +260,15 @@
     return this;
   };
 
+  Product.prototype.status = function() {
+    if (this.available === 0) {
+      return 'warning';
+    }
+    if (this.available < 0) {
+      return 'danger';
+    }
+  };
+
   Order = function(arg) {
     this.customer = arg.customer, this.id = arg.id;
     this.orderItems = [];

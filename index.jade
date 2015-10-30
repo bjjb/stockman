@@ -83,10 +83,14 @@ html
         .page-header
           h1 Inventory
         table.table.table-striped.table-condensed
+          caption.
+            Total is the amount in the freezer; Available is the number left
+            after condidering Open and Hold orders.
           thead
             tr
-              th.product   Name
-              th.total     Total
+              th.type Type
+              th.product Name
+              th.total Total
               th.available Available
               th.actions
           tbody.products(data-template='#inventory script.product')

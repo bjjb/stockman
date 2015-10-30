@@ -1,7 +1,8 @@
 | {{#products}}
 tr(id="{{ID}}")
-  td.product   {{product}}
-  td.total     {{total}}
-  td.available {{available}}
+  td.type {{type}}
+  td.product {{product}}
+  td.total {{total}}
+  td.available(class="{{status}}") {{available}}
   td.actions
 | {{/products}}
