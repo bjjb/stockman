@@ -157,7 +157,12 @@
                 </div>
                 <div class="panel-footer">
                   <div class="row">
-                    <output name="total" value="{{getTotal}}" class="total">{{getTotal}}</output>
+                    <form class="form form-inline">
+                      <div class="form-group">
+                        <label class="control-label">Total</label>
+                        <output name="total" value="{{getTotal}}" class="form-control-static total">{{getTotal}}</output>
+                      </div>
+                    </form>
                   </div>
                 </div>
               </div>

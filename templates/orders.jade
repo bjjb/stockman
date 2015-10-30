@@ -10,7 +10,10 @@
       .panel-body
         ul.list-group
           | {{#items}}
-          .li.list-group-item.order-item(id="order-item-{{id}}" class="list-group-item-{{context}} {{status}}{{#comment}} comment{{/comment}}" data-order="{{order.id}}")
+          .li.list-group-item.order-item(
+              id="order-item-{{id}}"
+              class="list-group-item-{{context}} {{status}}{{#comment}} comment{{/comment}}"
+              data-order="{{order.id}}")
             .container-fluid
               .row
                 .col-sm-4
@@ -78,6 +81,9 @@
 
       .panel-footer
         .row
-          output.total(name="total" value="{{getTotal}}") {{getTotal}}
+          form.form.form-inline
+            .form-group
+              label.control-label Total
+              output.form-control-static.total(name="total" value="{{getTotal}}") {{getTotal}}
 
   | {{/orders}}
