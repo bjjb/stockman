@@ -156,7 +156,7 @@ ui = null # A collection of helpers for modifying the DOM
 
 # A promise that resolves when the window is loaded
 getUI = new Promise (resolve, reject) ->
-  window.addEventListener 'load', ->
+  window.addEventListener 'DOMContentLoaded', ->
     resolve(ui = UI(@))
 
 # Handles UI events on the #orders element
@@ -299,26 +299,23 @@ updateSpreadsheet = (changes) ->
 # Show that some synchronization is happening
 showSynchronizing = ->
   getUI.then ->
-    ui.replaceClass('.synchronizing')('success', 'error')('working')
-    ui.show('.synchronizing')
-    debug("Synchronizing...")
+    ui.addClass('body')('synchronizing')
+    ui.addClass('.alerts .synchronizing')('working')
 
 # Show that the synchronizing has finished
 showSynchronizationSuccess = ->
   getUI.then ->
-    ui.replaceClass('.synchronizing')('working')('success')
-    setTimeout((-> ui.hide('.synchronizing')), 3000)
+    ui.replaceClass('.alerts .synchronizing')('working')('success')
+    setTimeout((-> ui.removeClass('body')('synchronizing')), 5000)
 
 # Show that the synchronizing has failed
 showSynchronizationFailure = (reason) ->
   getUI.then ->
     console.error reason
     debug reason, Error()
-    console.debug ui.$('.synchronizing').classList
-    ui.replaceClass('.synchronizing')('working')('error')
-    console.debug ui.$('.synchronizing').classList
-    ui.$('.synchronizing .reason').innerHTML = reason
-    setTimeout((-> ui.hide('.synchronizing')), 5000)
+    ui.replaceClass('.alerts .synchronizing')('working')('error')
+    ui.$('.alerts .synchronizing .reason').innerHTML = reason
+    setTimeout((-> ui.removeClass('body')('synchronizing')), 5000)
 
 # Gets the time the app and the spreadsheet were last synced.
 getLastSyncedTime = ->

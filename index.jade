@@ -16,7 +16,7 @@ html
 
   body
     nav.navbar.navbar-default
-      section.container-fluid
+      .container-fluid
         header.navbar-header
           button.navbar-toggle.collapsed(type="button" data-toggle="collapse" data-target='#navbar')
             span.icon-bar
@@ -37,40 +37,49 @@ html
             li: a(href="#inventory") Inventory
             li: a(href="#log") Logs
             li: a(href="javascript:getAuthToken.revoke()") Revoke token
-    main
+
+    // The main element
+    main.paged
       .container.alerts
-        .alert.fatal.alert.alert-danger.fade
+        .fatal.alert.alert-danger
           p
-            span.message
-        .alert.offline.alert.alert-warning.fade
+            span.message &nbsp;
+        .offline.alert.alert-warning
           p
             span.message Currently offline
             span.glyphicon.glyphicon-warning-sign.pull-right
-        .alert.synchronizing.fade
-          p.alert.working.alert-info
+        .online.alert.alert-info
+          p
+            span.message We're back online!
+            span.glyphicon.glyphicon-cloud.pull-right
+        .synchronizing
+          .alert.working.alert-info
             span.working.message Synchronizing...
             span.working.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
-          p.alert.error.alert-danger
+          .alert.error.alert-danger
             span.error.glyphicon.glyphicon-warning-sign.pull-right
-            span.error.message
-              | Synchronization failed!
-              br
-              small.reason
-          p.alert.success.alert-success
+            h4 Synchronization failed!
+            p.reason &nbsp;
+          .alert.success.alert-success
             span.success.message All data is up to date.
             span.success.glyphicon.glyphicon-cloud.pull-right
-      section#orders.container-fluid
+
+      // The orders page
+      section#orders.page.container-fluid
         .page-header
           h1 Orders
         form.form.filter
-          .input-group.input-group-lg
-            label.input-group-addon(for="filter-input")
-              span.glyphicon.glyphicon-search
-            input#filter-input.form-control(type="search" name="filter" placeholder="Find a customer")
+          .form-group
+            .input-group.input-group-lg
+              label.input-group-addon(for="filter-input")
+                span.glyphicon.glyphicon-search
+              input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a customer")
         .orders(data-template='#orders script.orders')
         script.orders(type='text/html')
           include ./templates/orders
-      section#inventory.container-fluid
+
+      // The inventory page
+      section#inventory.page.container-fluid
         .page-header
           h1 Inventory
         table.table.table-striped.table-condensed
@@ -84,14 +93,15 @@ html
         script.product(type='text/html')
           include ./templates/product
 
-      section#choose-spreadsheet.container-fluid
+      // Page shown when the user has to chose a spreadsheet
+      section#choose-spreadsheet.page.container-fluid
         .page-header
           h1 Choose your spreadsheet
         .fetching
-          p.jumbotron.
+          p.lead
             Downloading a list of your spreadsheets from your Google Drive...
         .error
-          p.jumbotron.danger.
+          p.lead.danger.
             Uh oh! Failed to get your spreadsheets!
             span.reason
         .waiting
@@ -106,5 +116,7 @@ html
             button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Use this spreadsheet
         script(type="text/html")
           include ./templates/choose-spreadsheet
-      section#log
+
+      // Logs page
+      section#log.page
         ul#logs

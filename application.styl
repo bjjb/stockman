@@ -1,10 +1,37 @@
-html
-  overflow-y scroll
+// If this element has a class, then show the element in the container
+// which also has that class. Show nothing else.
 
-main>section
-  display none
-  &:target
-    display inherit
+html
+  overflow-y scroll // Always show scrollbar on right
+
+body
+  .alerts > *
+    display none
+  for state in (synchronizing fatal offline online)
+    &.{state} .alerts > .{state}
+      display inherit
+
+main
+  position relative // so we can absolutely position children
+  &.paged
+    > .page
+      display none
+    > .page:target
+      display inherit
+
+.alerts
+  position absolute
+  top 0
+  left 0
+  right 0
+
+.alerts .synchronizing
+  opacity 0.6
+  & > *
+    display none
+  for state in (working error success)
+    &.{state} > .{state}
+      display inherit
 
 h1 > small
   margin-left 1em
@@ -15,12 +42,11 @@ tr
 [hidden]
   display none !important
 
-.glyphicon-spin
-  animation: spin 1s infinite linear;
-
+// Fixes some button spacing
 button .fa, button .glyphicon
   margin 1em
 
+// Animation for spinners
 @-webkit-keyframes spin
   0%
     transform rotate(0deg);
@@ -31,43 +57,12 @@ button .fa, button .glyphicon
   100%
     transform rotate(359deg);
 
-.alert
-  position absolute
-  top 0
-  left 0
-  right 0
-  margin: 1em
-  opacity 0.8
-.synchronizing.working
-  display inherit
-  p.working
-    display inherit
-.synchronizing.success
-  display inherit
-  p.success
-    display inherit
-.synchronizing.error
-  display inherit
-  p.error
-    display inherit
+.glyphicon-spin
+  animation: spin 1s infinite linear;
+
 
 #choose-spreadsheet
-  >*
-    display none
-  .page-header
-    display inherit
-  &.fetching
-    > .fetching
-      display inherit
-  &.waiting
-    > .waiting
-      display inherit
-  &.error
-    > .error
-      display inherit
-  &.success
-    > .success
-      display inherit
+  statefullyShow(fetching, waiting, error, success)
 
 #inventory
   table
@@ -79,11 +74,15 @@ button .fa, button .glyphicon
 #orders
   .panel-title
     a
-      display block
+      display block // make the whole header clickable
+    a:hover
+      text-decoration none // don't underline on hover
   form.filter
-    margin-top 0.5em
-    margin-bottom 0.5em
+    // nothing...
   .order-item
+    .details
+      margin 0.5em auto
+      vertical-align middle
     form
       display none
       text-align right
@@ -109,4 +108,3 @@ button .fa, button .glyphicon
       display none
     form.selling
       display inherit
-

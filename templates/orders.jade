@@ -13,13 +13,12 @@
           .li.list-group-item.order-item(id="order-item-{{id}}" class="list-group-item-{{context}} {{status}} {{commentClass}}")
             .container-fluid
               .row
-                .col-xs-1
-                  small.status {{ status }}
-                .col-xs-6.description
-                  span.qty {{qty}}
-                  small ×
-                  span.product {{product}}
-                .col-xs-5
+                .col-sm-4
+                  .details
+                    span.qty {{qty}}
+                    small ×
+                    span.product {{product}}
+                .col-sm-8
                   form.form.form-inline.open
                     .btn-group
                       button.action.btn.btn-success(data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
@@ -71,6 +70,7 @@
                           li: a(data-orderitem="{{id}}" data-action="sell" href='javascript:void(0)') Cancel
                           li.divider
                           li: a(data-orderitem="{{id}}" data-action="delete" href='javascript:void(0)') Delete
+
           | {{/items}}
         p.comment {{comment}}
   | {{/orders}}
