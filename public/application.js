@@ -732,6 +732,11 @@
             checkoutOrderItem(target);
         }
       }
+      if (nodeName === 'SPAN' && id === 'clear-filter') {
+        form = ui.$('form[name="filter"]');
+        form.reset();
+        filterOrders(form.filter.value);
+      }
     }
     if (type === 'input') {
       if (target.name === 'price') {

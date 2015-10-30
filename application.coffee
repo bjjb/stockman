@@ -187,6 +187,10 @@ ordersHandler = (event) ->
         when 'Delete' then deleteOrderItem(target)
         when 'Undo' then unsellOrderItem(target)
         when 'Checkout' then checkoutOrderItem(target)
+    if nodeName is 'SPAN' and id is 'clear-filter'
+      form = ui.$('form[name="filter"]')
+      form.reset()
+      filterOrders(form.filter.value)
   if type is 'input'
     if target.name is 'price'
       updateOrderItemPrice(target)

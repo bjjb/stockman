@@ -78,7 +78,15 @@ button .fa, button .glyphicon
     a:hover
       text-decoration none // don't underline on hover
   form.filter
-    // nothing...
+    position relative
+    .clear
+      cursor pointer
+      position absolute
+      top 0.8em
+      right 0.5em
+      font-size large
+      z-index 2
+      opacity 0.3
   .order-item
     .details
       margin 0.5em auto
