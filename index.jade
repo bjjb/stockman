@@ -16,7 +16,7 @@ html
 
   body
     nav.navbar.navbar-default
-      section.container
+      section.container-fluid
         header.navbar-header
           button.navbar-toggle.collapsed(type="button" data-toggle="collapse" data-target='#navbar')
             span.icon-bar
@@ -59,7 +59,7 @@ html
           p.alert.success.alert-success
             span.success.message All data is up to date.
             span.success.glyphicon.glyphicon-cloud.pull-right
-      section#orders.container
+      section#orders.container-fluid
         .page-header
           h1 Orders
         form.form.filter
@@ -70,7 +70,7 @@ html
         .orders(data-template='#orders script.orders')
         script.orders(type='text/html')
           include ./templates/orders
-      section#inventory.container
+      section#inventory.container-fluid
         .page-header
           h1 Inventory
         table.table.table-striped.table-condensed
@@ -84,7 +84,7 @@ html
         script.product(type='text/html')
           include ./templates/product
 
-      section#choose-spreadsheet.container
+      section#choose-spreadsheet.container-fluid
         .page-header
           h1 Choose your spreadsheet
         .fetching

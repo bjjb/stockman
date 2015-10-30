@@ -112,7 +112,12 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
   enable  = (qs...) -> (e.disabled = false for e in $$(q)) for q in qs
   disable = (qs...) -> (e.disabled = true for e in $$(q)) for q in qs
   addClass = (qs...) -> (classes...) -> ((e.classList.add(c) for c in classes) for e in $$(q)) for q in qs
-  removeClass = (qs...) -> (classes...) -> ((e.classList.remove(c) for c in classes) for e in $$(q)) for q in qs
+  removeClass = (qs...) ->
+    (classes...) ->
+      for q in qs
+        for e in $$(q)
+          for c in classes
+            e.classList.remove(x) for x in e.classList when x?.match(new RegExp("^#{c}$"))
   replaceClass = (qs...) ->
     (remove...) ->
       (add...) ->
@@ -154,14 +159,17 @@ getUI = new Promise (resolve, reject) ->
   window.addEventListener 'load', ->
     resolve(ui = UI(@))
 
+# Handles UI events on the #orders element
 ordersHandler = (event) ->
   { type, target } = event
   { name, id, classList, dataset, nodeName } = target
   if type is 'click'
-    if nodeName is 'A' and 'action' in classList
+    if nodeName is 'A' and dataset.action?
       event.preventDefault()
-      setOrderItemAction(target)
-    if nodeName is 'BUTTON' and 'action' in classList
+      form = target
+      form = form.parentElement until form.nodeName is 'FORM'
+      setOrderItemAction(form, dataset.action)
+    if nodeName is 'BUTTON' and dataset.action?
       event.preventDefault()
       performOrderItemAction(target)
     if nodeName is 'BUTTON' and dataset.action is 'newOrder'
@@ -177,11 +185,11 @@ ordersHandler = (event) ->
     if target.name is 'price'
       updateOrderPrice(target)
     else if target.name is 'filter'
-      filterOrders(target)
+      filterOrders(target.value)
   if type is 'submit'
     event.preventDefault()
     if target.name is 'filter'
-      filterOrders(target)
+      filterOrders(target.value)
     if target.name is 'price'
       updateOrderPrice(target)
     
@@ -306,7 +314,9 @@ showSynchronizationFailure = (reason) ->
   getUI.then ->
     console.error reason
     debug reason, Error()
+    console.debug ui.$('.synchronizing').classList
     ui.replaceClass('.synchronizing')('working')('error')
+    console.debug ui.$('.synchronizing').classList
     ui.$('.synchronizing .reason').innerHTML = reason
     setTimeout((-> ui.hide('.synchronizing')), 5000)
 
@@ -496,6 +506,34 @@ replaceInventory = (products) ->
 replaceOrders = (orderItems) ->
   clearStore('orders').then ->
     addAll('orders')(new OrderItem(o) for o in orderItems)
+
+filterOrders = (match) ->
+  rex = new RegExp("#{match}", "i")
+  orders = ui.$$('#orders .order-panel')
+  for order in orders
+    customerName = ui.$("##{order.id} .customer").innerText
+    order.hidden = !customerName.match(rex)
+
+setOrderItemAction = (form, action) ->
+  button = form.querySelector('button.action')
+  console.log button
+  button.dataset.action = action
+  button.innerHTML = action
+  buttons = form.querySelectorAll('button')
+  console.log buttons
+  context = switch action
+    when "Sell" then "success"
+    when "Hold" then "warning"
+    when "Open" then "primary"
+    when "Short" then "danger"
+    when "Delete" then "danger"
+    else throw "Can't get context for action #{action}"
+  for button in buttons
+    button.classList.remove('btn-success')
+    button.classList.remove('btn-warn')
+    button.classList.remove('btn-primary')
+    button.classList.remove('btn-danger')
+    button.classList.add("btn-#{context}")
 
 console.log "Welcome to stockman v#{VERSION}"
 @Stockman = { VERSION, utils, ui, db }
