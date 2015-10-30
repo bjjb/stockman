@@ -52,7 +52,7 @@ OrderItem = (data) ->
   @[k] = new Date(@[k]) for k in ['updated', 'date_sold', 'hold_until'] when @[k]
   @
 OrderItem::getOrderID = -> @order ? @customer
-OrderItem::getPrice = "$ #{Number(@price ? 0).toFixed(2)}"
+OrderItem::getPrice = Number(@price ? 0).toFixed(2)
 OrderItem::bsClass = ->
   switch @status
     when 'SOLD' then 'success'
@@ -76,6 +76,10 @@ OrderItem::context = ->
     when 'SHORT' then 'danger'
     when 'SOLD' then 'success'
     else 'default'
+OrderItem::getTotal = ->
+  total = 0
+  total += Number(item.getPrice()) for item in @items
+  total.toFixed(2)
 
 Product = (data) ->
   @[k] = v for own k, v of data when v isnt ''
@@ -170,20 +174,18 @@ ordersHandler = (event) ->
       form = form.parentElement until form.nodeName is 'FORM'
       setOrderItemAction(form, dataset.action)
     if nodeName is 'BUTTON' and dataset.action?
+      { orderitem } = dataset
       event.preventDefault()
-      performOrderItemAction(target)
-    if nodeName is 'BUTTON' and dataset.action is 'newOrder'
-      event.preventDefault()
-      showNewOrderForm()
-    if nodeName is 'BUTTON' and dataset.action is 'newOrderItem'
-      event.preventDefault()
-      showNewOrderItemFormt(target)
-    if nodeName is 'BUTTON' and dataset.action is 'removeOrderItem'
-      event.preventDefault()
-      removeOrderItem(target)
+      switch dataset.action
+        when 'Sell' then sellOrderItem(target)
+        when 'Open' then openOrderItem(target)
+        when 'Hold' then holdOrderItem(target)
+        when 'Short' then shortOrderItem(target)
+        when 'Undo' then undoLastOrderItemAction(target)
+        when 'Checkout' then checkoutOrderItem(target)
   if type is 'input'
     if target.name is 'price'
-      updateOrderPrice(target)
+      updateOrderItemPrice(target)
     else if target.name is 'filter'
       filterOrders(target.value)
   if type is 'submit'
@@ -191,7 +193,7 @@ ordersHandler = (event) ->
     if target.name is 'filter'
       filterOrders(target.value)
     if target.name is 'price'
-      updateOrderPrice(target)
+      updateOrderItemPrice(target.price)
     
 
 inventoryHandler = (event) ->
@@ -222,22 +224,22 @@ synchronize = ->
 renderInventory = ->
   debug "renderInventory..."
   getUI
-    .then getInventory
+    .then getInventoryForUI
     .then (products) -> ui.render('#inventory tbody.products')({products})
 
 # Render the orders section
 renderOrders = ->
   getUI
-    .then -> getOrders()
+    .then getOrdersForUI
     .then (orders) -> ui.render('#orders div.orders')({orders})
 
 # Gets the inventory from the database
-getInventory = ->
+getInventoryForUI = ->
   getAll('inventory')().then (products) ->
     new Product(p) for p in products
 
 # Gets the orders from the database, and makes Orders objects
-getOrders = ->
+getOrdersForUI = ->
   getAll('orders')().then (orderItems) ->
     orderItems = (new OrderItem(o) for o in orderItems)
     orders = {}
@@ -245,6 +247,8 @@ getOrders = ->
       order_id = orderItem.getOrderID()
       { customer } = orderItem
       order = orders[order_id] ?= new Order({ customer, id })
+      orderItem.order = order
+      orderItem.order_id = id
       order.orderItems.push(orderItem)
     (v for own k, v of orders when v.status() isnt 'CLOSED')
 
@@ -506,7 +510,7 @@ replaceOrders = (orderItems) ->
 
 filterOrders = (match) ->
   rex = new RegExp("#{match}", "i")
-  orders = ui.$$('#orders .order-panel')
+  orders = ui.$$('#orders .order')
   for order in orders
     customerName = ui.$("##{order.id} .customer").innerText
     order.hidden = !customerName.match(rex)
@@ -529,6 +533,29 @@ setOrderItemAction = (form, action) ->
     button.classList.remove('btn-primary')
     button.classList.remove('btn-danger')
     button.classList.add("btn-#{context}")
+
+sellOrderItem = (target) ->
+  { dataset: { orderitem }, form } = target
+  ui.addClass("#order-item-#{orderitem}")('selling')
+  ui.$("#order-item-#{orderitem} form.selling [name='price']").focus()
+
+updateOrderItemPrice = (target) ->
+  { dataset: { orderitem }, form, value } = target
+  { order } = form.dataset
+  form.sell.disabled = !value
+  output = ui.$("#order-item-#{orderitem} form.sold").price
+  value = Number(value or 0).toFixed(2)
+  output.setAttribute('value', value)
+  output.innerHTML = "$ #{value}"
+  updateOrderPrice(order)
+
+updateOrderPrice = (order) ->
+  prices = (Number(e.value or 0) for e in ui.$$("#order-#{order} input[name='price']"))
+  total = 0
+  total += Number(price or 0) for price in prices
+  output = ui.$("#order-#{order} output[name='total']")
+  output.setAttribute('value', total)
+  output.innerHTML = "$ #{total.toFixed(2)}"
 
 console.log "Welcome to stockman v#{VERSION}"
 @Stockman = { VERSION, utils, ui, db }
