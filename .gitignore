@@ -3,3 +3,4 @@ divshot-debug.log
 node_modules
 .divshot-cache
 .*.sw?
+public
