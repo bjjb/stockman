@@ -31,10 +31,10 @@ html(manifest="index.appcache")
                 | Orders
                 span.caret
               ul.dropdown-menu
-                li: a.text-info(href="?orders=open#orders") Open
-                li: a.text-warning(href="?orders=held#orders") Held
-                li: a.text-danger(href="?orders=short#orders") Short
-                li: a.text-muted(href="?orders=closed#orders") Closed
+                li: a.text-info(href="#orders") Open
+                li: a.text-warning(href="#orders") Held
+                li: a.text-danger(href="#orders") Short
+                li: a.text-muted(href="#orders") Closed
                 li: a.text-primary(href="#orders") All
             li: a(href="#inventory") Inventory
             li: a(href="#log") Logs
@@ -139,3 +139,7 @@ html(manifest="index.appcache")
             h1
               span.icon.glyphicon.glyphicon-dashboard
               | Dashboard
+
+          .row.statuses(data-template="#dashboard script")
+          script(type="text/html")
+            include ./templates/dashboard-statuses

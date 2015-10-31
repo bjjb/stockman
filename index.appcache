@@ -1,13 +1,35 @@
 CACHE MANIFEST
+
 # {{name}} v{{version}} - {{date}}
 
-index.html
-application.css
-components/bootstrap/dist/css/bootstrap.min.css
-components/bootstrap/dist/css/bootstrap-theme.min.css
-components/font-awesome/css/font-awesome.css
-oauth2rizer.js
-components/jquery/dist/jquery.min.js
-components/bootstrap/dist/js/bootstrap.min.js
-components/mustache.js/mustache.min.js
-application.js
+CACHE:
+/
+/index.html
+/favicon.ico
+/application.css
+/components/bootstrap/dist/css/bootstrap.min.css
+/components/bootstrap/dist/fonts/glyphicons-halflings-regular.eot
+/components/bootstrap/dist/fonts/glyphicons-halflings-regular.woff
+/components/bootstrap/dist/fonts/glyphicons-halflings-regular.woff2
+/components/bootstrap/dist/fonts/glyphicons-halflings-regular.svg
+/components/bootstrap/dist/fonts/glyphicons-halflings-regular.ttf
+/components/bootstrap/fonts/glyphicons-halflings-regular.eot
+/components/bootstrap/fonts/glyphicons-halflings-regular.woff
+/components/bootstrap/fonts/glyphicons-halflings-regular.woff2
+/components/bootstrap/fonts/glyphicons-halflings-regular.svg
+/components/bootstrap/fonts/glyphicons-halflings-regular.ttf
+/components/bootstrap/dist/css/bootstrap-theme.min.css
+/components/font-awesome/css/font-awesome.css
+/components/font-awesome/fonts/fontawesome-webfont.eot?v=4.4.0
+/components/font-awesome/fonts/fontawesome-webfont.svg?v=4.4.0
+/components/font-awesome/fonts/fontawesome-webfont.ttf?v=4.4.0
+/components/font-awesome/fonts/fontawesome-webfont.woff2?v=4.4.0
+/components/font-awesome/fonts/FontAwesome.otf?v=4.4.0
+/components/font-awesome/fonts/fontawesome-webfont.woff?v=4.4.0
+/oauth2rizer.js
+/components/jquery/dist/jquery.min.js
+/components/bootstrap/dist/js/bootstrap.min.js
+/components/mustache.js/mustache.min.js
+/components/db.js/src/db.js
+/application.js
+
