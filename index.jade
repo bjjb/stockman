@@ -31,9 +31,11 @@ html(manifest="index.appcache")
                 | Orders
                 span.caret
               ul.dropdown-menu
-                li: a(href="#orders") All
-                li: a(href="#orders") Open
-                li: a(href="#orders") Closed
+                li: a.text-info(href="?orders=open#orders") Open
+                li: a.text-warning(href="?orders=held#orders") Held
+                li: a.text-danger(href="?orders=short#orders") Short
+                li: a.text-muted(href="?orders=closed#orders") Closed
+                li: a.text-primary(href="#orders") All
             li: a(href="#inventory") Inventory
             li: a(href="#log") Logs
             li: a(href="javascript:getAuthToken.revoke()") Revoke token
