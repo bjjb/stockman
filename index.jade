@@ -67,7 +67,10 @@ html(manifest="index.appcache")
       // The orders page
       section#orders.page.container-fluid
         .page-header
-          h1 Orders
+          h1
+            span.icon.fa.fa-shopping-cart
+            | Orders
+          button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewOrder')
         form.form.filter(name='filter')
           .form-group
             .input-group.input-group-lg
@@ -82,7 +85,10 @@ html(manifest="index.appcache")
       // The inventory page
       section#inventory.page.container-fluid
         .page-header
-          h1 Inventory
+          h1 
+            span.icon.glyphicon.glyphicon-scale
+            | Inventory
+          button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
         table.table.table-striped.table-condensed
           caption.
             Total is the amount in the freezer; Available is the number left
