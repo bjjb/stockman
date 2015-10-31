@@ -1,6 +1,7 @@
 .panel-group#order-panels
   | {{#orders}}
-  .order.panel(id="order-{{id}}" class="{{status}}" class="panel-{{context}}")
+  //.order.panel(id="order-{{id}}" class="{{status}}" class="panel-{{context}}")
+  .order.panel(id="order-{{id}}" class="{{status}}" class="panel-default")
     .panel-heading
       h4.panel-title
         a(data-toggle="collapse" data-parent="#order-panels" href="#order-collapse-{{id}}")
