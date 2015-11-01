@@ -1,35 +1,52 @@
-a(href="#orders").col-lg-3.col-md-6
-  .panel(class="panel-info")
-    .panel-heading
-      .row
-        .col-xs-3
-          span.glyphicon.massive(class="glyphicon-shopping-cart")
-        .col-xs-9.text-right
-          .huge.open-orders 12
-          .description Open orders
-a(href="#orders").col-lg-3.col-md-6
-  .panel(class="panel-warning")
-    .panel-heading
-      .row
-        .col-xs-3
-          span.glyphicon.massive(class="glyphicon-shopping-cart")
-        .col-xs-9.text-right
-          .huge.hold-orders 8
-          .description Held orders
-a(href="#orders").col-lg-3.col-md-6
-  .panel(class="panel-danger")
-    .panel-heading
-      .row
-        .col-xs-3
-          span.glyphicon.massive(class="glyphicon-shopping-cart")
-        .col-xs-9.text-right
-          .huge.short-orders 7
-          .description Short orders
-a(href="#inventory").col-lg-3.col-md-6
-  .panel(class="panel-info")
-    .panel-heading
-      .row
-        .col-xs-3
-          span.glyphicon.massive(class="glyphicon-list-alt")
-        .col-xs-9.text-right
-          .description You're out of Hot-dogs!
+.col-lg-3.col-md-6
+  a(href="#inventory")
+    .panel(class="panel-success")
+      .panel-heading
+        .row
+          .col-xs-3
+            span.glyphicon.massive(class="glyphicon-scale")
+          .col-xs-9.text-right
+            .description {{inventory.description}}
+            strong.inventory {{inventory.product}}
+      .panel-footer
+        | View inventory
+        span.glyphicon.glyphicon-circle-arrow-right.pull-right
+.col-lg-3.col-md-6
+  a(href="#orders")
+    .panel(class="panel-info")
+      .panel-heading
+        .row
+          .col-xs-3
+            span.glyphicon.massive(class="glyphicon-shopping-cart")
+          .col-xs-9.text-right
+            strong.huge.open-orders {{orders.open}}
+            .description Open orders
+      .panel-footer
+        | View orders
+        span.glyphicon.glyphicon-circle-arrow-right.pull-right
+.col-lg-3.col-md-6
+  a(href="#orders")
+    .panel(class="panel-warning")
+      .panel-heading
+        .row
+          .col-xs-3
+            span.glyphicon.massive(class="glyphicon-shopping-cart")
+          .col-xs-9.text-right
+            strong.huge.open-orders {{orders.hold}}
+            .description Held orders
+      .panel-footer
+        | View orders
+        span.glyphicon.glyphicon-circle-arrow-right.pull-right
+.col-lg-3.col-md-6
+  a(href="#orders")
+    .panel(class="panel-danger")
+      .panel-heading
+        .row
+          .col-xs-3
+            span.glyphicon.massive(class="glyphicon-shopping-cart")
+          .col-xs-9.text-right
+            strong.huge.open-orders {{orders.short}}
+            .description Short orders
+      .panel-footer
+        | View orders
+        span.glyphicon.glyphicon-circle-arrow-right.pull-right

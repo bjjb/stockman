@@ -248,7 +248,7 @@ renderOrders = ->
 # Render the dashboard
 renderDashboard = ->
   getUI
-    .then getStatusesForUI
+    .then getDashboardForUI
     .then (statuses) -> ui.render('#dashboard .statuses')({statuses})
 # Gets the inventory from the database
 getInventoryForUI = ->
@@ -273,21 +273,18 @@ getOrdersForUI = ->
 
 # Gets the numbers of openOrders, heldOrders, shortOrders, and a random
 # message about the state of the inventory.
-getStatusesForUI = ->
-  statuses = []
-  Promise.all [
-    openDB.then (db) ->
-      db.orders.status.getAll('OPEN').then (count) ->
-        console.debug "COUTED OPEN ORDERS: ", count
-        statuses.push(description: 'Open orders', number: count, icon: 'shopping-cart', context: 'primary')
-      db.orders.status.getAll('HOLD').then (count) ->
-        console.debug "COUTED HELD ORDERS: ", count
-        statuses.push(description: 'Held orders', number: count, icon: 'shopping-cart', context: 'warning')
-      db.orders.status.getAll('SHORT').then (count) ->
-        console.debug "COUTED SHORT ORDERS: ", count
-        statuses.push(description: 'Short orders', number: count, icon: 'shopping-cart', context: 'danger')
-  ]
-  statuses
+getDashboardForUI = ->
+  dashboard = { orders: {}, inventory: {} }
+  openDB.then (db) ->
+    Promise.all [
+      db.orders.status('OPEN').count().then (n)       -> dashboard.orders.open = n
+      db.orders.status('HOLD').count().then (n)       -> dashboard.orders.hold = n
+      db.orders.status('SHORT').count().then (n)      -> dashboard.orders.short = n
+      db.dashboard.available(null, -1).get().then (p) -> dashboard.inventory.short = p
+      db.dashboard.available(0).get().then (p)        -> dashboard.inventory.out = p
+    ].then -> dashboard
+      
+
 
 keyRange = (arg) ->
   return IDBKeyRange.only(arg) unless arg instanceof Array
