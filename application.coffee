@@ -249,7 +249,7 @@ renderOrders = ->
 renderDashboard = ->
   getUI
     .then getDashboardForUI
-    .then (statuses) -> ui.render('#dashboard .statuses')({statuses})
+    .then ui.render('#dashboard .statuses')
 # Gets the inventory from the database
 getInventoryForUI = ->
   openDB.then (db) ->
@@ -276,30 +276,15 @@ getOrdersForUI = ->
 getDashboardForUI = ->
   dashboard = { orders: {}, inventory: {} }
   openDB.then (db) ->
-    Promise.all [
+    console.debug(db.inventory.available(0))
+    Promise.all([
       db.orders.status('OPEN').count().then (n)       -> dashboard.orders.open = n
       db.orders.status('HOLD').count().then (n)       -> dashboard.orders.hold = n
       db.orders.status('SHORT').count().then (n)      -> dashboard.orders.short = n
-      db.dashboard.available(null, -1).get().then (p) -> dashboard.inventory.short = p
-      db.dashboard.available(0).get().then (p)        -> dashboard.inventory.out = p
-    ].then -> dashboard
+      db.inventory.available([null, -1]).get().then (p) -> dashboard.inventory.short = p
+      db.inventory.available(0).get().then (p)        -> dashboard.inventory.out = p
+    ]).then -> dashboard
       
-
-
-keyRange = (arg) ->
-  return IDBKeyRange.only(arg) unless arg instanceof Array
-  [lower, upper] = arg
-  if lower?
-    if upper?
-      console.log "keyRange.bound", arg
-      IDBKeyRange.bound(lower, upper)
-    else
-      console.log "keyRange.lowerBound", arg
-      IDBKeyRange.lowerBound(lower)
-  else
-    console.log "keyRange.upperBound", arg
-    IDBKeyRange.upperBound(upper)
-
 # Gets a function to merge the second argument into the first
 merge = (first) ->
   (second) ->
@@ -443,15 +428,33 @@ db = null
 Database = (@idb) ->
   @[store] = new Database.Store(@, store) for store in @idb.objectStoreNames
   @
+Database.keyRange = (arg) ->
+  return IDBKeyRange.only(arg) unless arg instanceof Array
+  [lower, upper] = arg
+  if lower?
+    if upper?
+      console.log "keyRange.bound", arg
+      IDBKeyRange.bound(lower, upper)
+    else
+      console.log "keyRange.lowerBound", arg
+      IDBKeyRange.lowerBound(lower)
+  else
+    console.log "keyRange.upperBound", arg
+    IDBKeyRange.upperBound(upper)
 Database::transaction = (name, mode = 'readonly') ->
   @idb.transaction(name, mode)
 Database.Store = (@db, @name) ->
-  @[index] = new Database.Store.Index(@, index) for index in  @objectStore().indexNames
+  for index in @objectStore().indexNames
+    @[index] = (range, direction) ->
+      @index(index, range, direction)
   @
 Database.Store::transaction = (mode = 'readonly') ->
   @db.transaction(@name, mode)
 Database.Store::objectStore = (mode = 'readonly') ->
   @transaction(mode).objectStore(@name)
+Database.Store::index = (index, range, direction) ->
+  console.debug @
+  new Database.Store.Index(@, index, range, direction)
 Database.Store::get = (key) ->
   new Promise (resolve, reject) =>
     req = @objectStore().get(key)
@@ -481,19 +484,31 @@ Database.Store::add = (value) ->
     req.addEventListener 'error', ->
       console.error "Failed to add #{name}: #{@error.message} [#{@error.name}]", value
       reject @error
-Database.Store.Index = (@store, @name) ->
+Database.Store.Index = (@store, @name, @range, @direction) ->
   @
 Database.Store.Index::index = (mode) -> @objectStore(mode).index(@name)
-Database.Store.Index::objectStore = (mode) -> @store.objectStore(mode)
-Database.Store.Index::getAll = (range) ->
+Database.Store.Index::objectStore = (mode) ->
+  console.debug @
+  @store.objectStore(mode)
+Database.Store.Index::getAll = ->
   new Promise (resolve, reject) =>
     result = []
-    req = @index().openCursor(keyRange(range))
+    req = @index().openCursor(@range, @direction).openCursor()
     req.addEventListener 'success', ->
       return resolve result unless @result?
       result.push @result.value
       @result.continue()
     req.addEventListener 'error', -> reject @error
+Database.Store.Index::count = ->
+  new Promise (resolve, reject) =>
+    req = @index().count(Database.keyRange(@range))
+    req.addEventListener 'success', -> resolve @result
+    req.addEventListener 'error', -> reject @error.message
+Database.Store.Index::get = ->
+  new Promise (resolve, reject) =>
+    req = @index().get(Database.keyRange(@range))
+    req.addEventListener 'success', -> resolve @result
+    req.addEventListener 'error', -> reject @error.message
 openDB = new Promise (resolve, reject) ->
   migrations = [
     (db) ->
