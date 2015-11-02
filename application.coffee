@@ -670,6 +670,23 @@ sellOrderItem = (target) ->
   ui.addClass("#order-item-#{orderitem}")('selling')
   ui.$("#order-item-#{orderitem} form.selling [name='price']").focus()
 
+openOrderItem = (target) ->
+  { dataset: { orderitem }, form } = target
+  ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'SHORT', 'HOLD')('OPEN')
+
+holdOrderItem = (target) ->
+  { dataset: { orderitem }, form } = target
+  ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'SHORT', 'OPEN')('HOLD')
+
+shortOrderItem = (target) ->
+  { dataset: { orderitem }, form } = target
+  ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'OPEN', 'HOLD')('SHORT')
+
+deleteOrderItem = (target) ->
+  { dataset: { orderitem }, form } = target
+  if prompt("Are you sure?")
+    ui.hide("#order-item-#{orderitem}")
+
 updateOrderItemPrice = (target) ->
   { dataset: { orderitem }, form, value } = target
   { order } = form.dataset
