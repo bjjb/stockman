@@ -40,7 +40,6 @@ html(manifest="index.appcache")
             li: a(href="#log") Logs
             li: a(href="javascript:getAuthToken.revoke()") Revoke token
 
-    // The main element
     main.paged
       .container.alerts
         .fatal.alert.alert-danger
@@ -66,11 +65,32 @@ html(manifest="index.appcache")
             span.success.message All data is up to date.
             span.success.glyphicon.glyphicon-cloud.pull-right
 
-      // The orders page
-      section#orders.page.container-fluid
+      section#loading.container.page.paged
         .page-header
           h1
-            span.icon.fa.fa-shopping-cart
+            span.icon.glyphicon.glyphicon-refresh
+            | Loading
+        .container.checking.page
+          p Checking for updates...
+        .container.cached.page
+          p App is ready to go
+        .container.updateready.page
+          form.form.form-inline
+            .form-group.text-center
+              p A new version is available!
+              button.btn.btn-lg.btn-success(href='/')
+                span.glyphicon.glyphicon-download
+                | Upgrade
+        .container.downloading.page
+          form.form.form-inline
+            .form-group
+              label(for="download-progress") Downloading the latest version
+              progress.form-control#download-progress Downloading a new version...
+
+      section#orders.page.container
+        .page-header
+          h1
+            span.icon.glyphicon.glyphicon-shopping-cart
             | Orders
           button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewOrder')
         form.form.filter(name='filter')
@@ -84,8 +104,7 @@ html(manifest="index.appcache")
         script.orders(type='text/html')
           include ./templates/orders
 
-      // The inventory page
-      section#inventory.page.container-fluid
+      section#inventory.page.container
         .page-header
           h1 
             span.icon.glyphicon.glyphicon-scale
@@ -105,23 +124,23 @@ html(manifest="index.appcache")
         script.product(type='text/html')
           include ./templates/product
 
-      // Page shown when the user has to chose a spreadsheet
-      section#choose-spreadsheet.page.container-fluid
+      section#choose-spreadsheet.page.paged.container
         .page-header
-          h1 Choose your spreadsheet
-        .fetching
-          p.lead
-            Downloading a list of your spreadsheets from your Google Drive...
-        .error
-          p.lead.danger.
-            Uh oh! Failed to get your spreadsheets!
-            span.reason
-        .waiting
+          h1
+            span.icon.glyphicon.glyphicon-list-alt
+            | Spreadsheet
+        .page.downloading
+          span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
+          p.lead.text-info Downloading a list of your spreadsheets from your Google Drive...
+        .page.error
+          p.lead.text-danger Uh oh! Failed to get your spreadsheets!
+          p.reason.text-danger
+        .page.updateready
           form.form
             .form-group
               label.control-label(for='spreadsheet-select') Choose your spreadsheet
-              span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
-              select.form-control.input-lg#spreadsheet-select(disabled name='spreadsheet' data-template='#choose-spreadsheet script')
+              select.form-control.input-lg#spreadsheet-select(name='spreadsheet' data-template='#choose-spreadsheet script')
+              span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin(hidden)
               .help-block.help.
                   Once you have your spreadsheet linked, the data will be used
                   here
@@ -129,11 +148,10 @@ html(manifest="index.appcache")
         script(type="text/html")
           include ./templates/choose-spreadsheet
 
-      // Logs page
       section#log.page
         ul#logs
 
-      section#dashboard.page
+      section#dashboard.page.container
         .container
           .page-header
             h1
@@ -143,3 +161,10 @@ html(manifest="index.appcache")
           .row.statuses(data-template="#dashboard script")
           script(type="text/html")
             include ./templates/dashboard-statuses
+
+      section#settings.page.container
+        .container
+          .page-header
+            h1
+              span.icon.glyphicon.glyphicon-wrench
+              | Settings

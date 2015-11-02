@@ -31,7 +31,6 @@ ajax =
       xhr.send(data)
 debug = (args...) ->
   if DEBUG
-    console.debug(args...)
     getUI.then ->
       ul = document.getElementById('logs')
       li = document.createElement('LI')
@@ -143,16 +142,20 @@ UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, author
           e.innerHTML = Mustache.render(t, view, partials)
       view
   listen = (qs...) ->
-    (event) ->
-      (callback) ->
-        for q in qs
-          e.removeEventListener(event, callback) for e in $$(q)
-          e.addEventListener(event, callback)    for e in $$(q)
+    (events...) ->
+      (callbacks...) ->
+          for q in qs
+            for event in events
+              for callback in callbacks
+                e.removeEventListener(event, callback) for e in $$(q)
+                e.addEventListener(event, callback)    for e in $$(q)
   ignore = (qs...) ->
-    (event) ->
-      (callback) ->
+    (events...) ->
+      (callbacks...) ->
         for q in qs
-          e.removeEventListener(event, callback) for e in $$(q)
+          for event in events
+            for callback in callbacks
+              e.removeEventListener(event, callback) for e in $$(q)
   update = ({ orders, inventory }) ->
     render('#orders .panel-group.orders')({orders})
     render('#inventory tbody.products')({inventory})
@@ -166,8 +169,7 @@ ui = null # A collection of helpers for modifying the DOM
 
 # A promise that resolves when the window is loaded
 getUI = new Promise (resolve, reject) ->
-  window.addEventListener 'DOMContentLoaded', ->
-    resolve(ui = UI(@))
+  window.addEventListener 'DOMContentLoaded', -> resolve(ui = UI(@))
 
 # Handles UI events on the #orders element
 ordersHandler = (event) ->
@@ -208,20 +210,71 @@ ordersHandler = (event) ->
     
 
 inventoryHandler = (event) ->
-  { target } = event
+  { target, type } = event
+
+loadingHandler = (event) ->
+  { target, type } = event
+  switch type
+    when 'checking'
+      ui.addClass('#loading')(type)
+    when 'noupdate'
+      ui.replaceClass('#loading')('checking')(type)
+    when 'downloading'
+      ui.replaceClass('#loading')('checking')(type)
+    when 'progress'
+      { loaded, total, lengthComputable } = event
+      progress = ui.$('#loading progress')
+      progress.max = total
+      progress.value = loaded
+    when 'cached'
+      ui.replaceClass('#loading')('downloading')(type)
+    when 'updateready'
+      ui.replaceClass('#loading')('downloading')(type)
+    when 'obsolete'
+      ui.replaceClass('#loading')('checking')(type)
+    when 'error'
+      ui.replaceClass('#loading')('checking')(type)
+
+chooseSpreadsheetHandler = (event) ->
+  { type, target } = event
+  switch type
+    when 'change'
+      { value } = target
+      ui.$('#choose-spreadsheet .help').innerHTML = "Checking spreadsheet..."
+      ui.show('#choose-spreadsheet form .spinner')
+      checkSpreadsheet(value)
+        .then ({ orders, inventory }) ->
+          ui.hide('#choose-spreadsheet form .spinner')
+          sessionStorage.spreadsheet = JSON.stringify({ orders, inventory })
+          ui.replaceClass('#choose-spreadsheet form')('has-error', 'has-warning')('has-success')
+          ui.enable('#choose-spreadsheet button')
+          ui.$('#choose-spreadsheet form .help').innerHTML = "Spreadsheet looks good!"
+        .catch (message) ->
+          ui.hide('#choose-spreadsheet form .spinner')
+          ui.replaceClass('#choose-spreadsheet form')('has-success', 'has-warning')('has-error')
+          ui.disable('#choose-spreadsheet form button')
+          ui.$('#choose-spreadsheet form .help').innerHTML = "That spreadsheet appears invalid."
+
+checkSpreadsheet = (id) ->
+  console.debug "Checking spreadsheet...", id
+  getSpreadsheetData(id).then ({ inventory, orders }) ->
+    unless inventory? and orders?
+      throw "The spreadsheet must have sheets for Orders and for Inventory."
+    { inventory, orders }
 
 # Starts the whole thing
 start = ->
-  Promise.resolve()
+  getUI
+    .then -> ui.goto('#loading')
     .then synchronize
     .then renderInventory
     .then renderOrders
     .then renderDashboard
-    .then -> ui.listen('#orders')('click')(ordersHandler)
-    .then -> ui.listen('#orders')('input')(ordersHandler)
-    .then -> ui.listen('#orders')('submit')(ordersHandler)
+    .then -> ui.listen('#choose-spreadsheet')('change', 'submit')(chooseSpreadsheetHandler)
+    .then -> ui.listen('#orders')('click', 'input', 'submit')(ordersHandler)
     .then -> ui.listen('#inventory')('click')(inventoryHandler)
-    .then -> ui.goto('#dashboard')
+    .then -> ui.listen('#loading')('click')(loadingHandler)
+    #.then -> ui.goto('#dashboard')
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -276,7 +329,6 @@ getOrdersForUI = ->
 getDashboardForUI = ->
   dashboard = { orders: {}, inventory: {} }
   openDB.then (db) ->
-    console.debug(db.inventory.available(0))
     Promise.all([
       db.orders.status('OPEN').count().then (n)       -> dashboard.orders.open = n
       db.orders.status('HOLD').count().then (n)       -> dashboard.orders.hold = n
@@ -342,24 +394,14 @@ getSpreadsheetID = ->
     return resolve(spreadsheet_id) if spreadsheet_id
     chooseSpreadsheet()
     reject("You need to choose a spreadsheet.")
-localStorage.spreadsheet_id = "1hFU6T4UsSHaD8GMTpPEFMFcbQbHtsqX-jhQNXX-00bI"
 
-# Shows the spreadsheet chooser.
 chooseSpreadsheet = ->
-  getUI.then ->
-    ui.goto('#choose-spreadsheet')
-    ui.addClass('#choose-spreadsheet')('fetching')
-    getUserSpreadsheets().then (spreadsheets) ->
-      ui.render('#choose-spreadsheet select')({spreadsheets})
-      ui.enable('#choose-spreadsheet select')
-      ui.replaceClass('#choose-spreadsheet')('fetching')('waiting')
-      ui.listen('#choose-spreadsheet select')('change') ->
-        ui.enable('#choose-spreadsheet button')
-        ui.listen('#choose-spreadsheet form')('submit') (event) ->
-          event.preventDefault()
-          localStorage.spreadsheet_id = @spreadsheet.value
-          start()
-
+  ui.addClass('#choose-spreadsheet')('downloading')
+  ui.goto('#choose-spreadsheet')
+  getUserSpreadsheets().then (spreadsheets) ->
+    ui.render('#choose-spreadsheet select')({ spreadsheets })
+    ui.replaceClass('#choose-spreadsheet')('downloading')('updateready')
+  
 # Caches the result of f as key in storage.
 cache = (storage) ->
   (key) ->
@@ -376,17 +418,10 @@ getUserSpreadsheets = ->
 
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
-getSpreadsheetData = (params) ->
-  cache(localStorage)('data') ->
+getSpreadsheetData = (params...) ->
+  # cache(localStorage)('data') ->
+    console.debug "Getting spreadsheet data...", params...
     executeAppsScriptFunction('GetChanges')(params...)
-
-# Checks that a spreadsheet is valid, and redirects to the chooser if not,
-# rejecting the promise.
-checkSpreadsheetData = ({ inventory, orders }) ->
-  unless inventory? and orders?
-    chooseSpreadsheet()
-    return Promise.reject("Couldn't find INVENTORY/ORDERS on the spreadsheet. Try another one.")
-  { inventory, orders }
 
 # Saves the spreadsheet data in the database - resolves to an object with
 # orders, inventory, newOrders and newInventory - the latter should have IDs,
@@ -418,7 +453,6 @@ getSpreadsheetChanges = ->
   Promise.resolve()
     .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
     .then getSpreadsheetData
-    .then checkSpreadsheetData
     .then saveSpreadsheetData
     .then fixSpreadsheetData
     .then updateSpreadsheetData
@@ -453,7 +487,6 @@ Database.Store::transaction = (mode = 'readonly') ->
 Database.Store::objectStore = (mode = 'readonly') ->
   @transaction(mode).objectStore(@name)
 Database.Store::index = (index, range, direction) ->
-  console.debug @
   new Database.Store.Index(@, index, range, direction)
 Database.Store::get = (key) ->
   new Promise (resolve, reject) =>
@@ -488,7 +521,6 @@ Database.Store.Index = (@store, @name, @range, @direction) ->
   @
 Database.Store.Index::index = (mode) -> @objectStore(mode).index(@name)
 Database.Store.Index::objectStore = (mode) ->
-  console.debug @
   @store.objectStore(mode)
 Database.Store.Index::getAll = ->
   new Promise (resolve, reject) =>
@@ -623,6 +655,9 @@ updateOrderPrice = (order) ->
 
 soldOrderItem = (form) ->
   { order, orderItem } = form.dataset
+
+for event in 'checking noupdate downloading progress cached updateready obsolete error'.split(' ')
+  applicationCache.addEventListener event, loadingHandler
 
 console.log "Welcome to stockman v#{VERSION}"
 start()

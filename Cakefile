@@ -44,7 +44,7 @@ mustache = (view, src, dest) ->
     { readFile, writeFile } = require 'fs'
     readFile src, 'utf8', (error, data) ->
       writeFile dest, require('mustache').render(data, view), resolve
-dist   = -> mkdir(DIST).then(copy('favicon.ico'))
+dist   = -> mkdir(DIST).then(copy('favicon.ico', 'logo.svg'))
 html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
 css    = -> exec "stylus -o #{DIST} -m  #{SRC}/*.styl"
 js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
