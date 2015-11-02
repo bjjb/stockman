@@ -179,9 +179,7 @@ ordersHandler = (event) ->
   if type is 'click'
     if nodeName is 'A' and dataset.action?
       event.preventDefault()
-      form = target
-      form = form.parentElement until form.nodeName is 'FORM'
-      setOrderItemAction(form, dataset.action)
+      setOrderItemAction(target)
     if nodeName is 'BUTTON' and target.type is 'button' and dataset.action?
       { orderitem } = dataset
       switch dataset.action
@@ -348,7 +346,6 @@ getDashboardForUI = ->
       db.inventory.available.getAll([null, -1]).then (p) -> dashboard.inventory.short = p
       db.inventory.available.getAll(0).then (p) -> dashboard.inventory.out = p
     ]).then ->
-      console.debug dashboard
       { orders, inventory } = dashboard
       { short, out } = dashboard.inventory
       inventory.message = "You're #{-sp.available} short on #{sp.product}" if sp = short.shift()
@@ -648,11 +645,13 @@ filterProducts = (match) ->
     productName = product.querySelector('.product').innerText
     product.hidden = !productName.match(rex)
 
-setOrderItemAction = (form, action) ->
-  button = form.querySelector('button.action')
-  button.dataset.action = action
-  button.innerHTML = action
-  buttons = form.querySelectorAll('button')
+setOrderItemAction = (target) ->
+  console.debug "Setting action on ", target
+  { dataset } = target
+  { orderitem, action } = dataset
+  form = target
+  form = form.parentElement until form.nodeName is 'FORM'
+  formClass = c for c in form.classList when c in ['hold', 'sell', 'short', 'selling', 'open', 'undo', 'delete']
   context = switch action
     when "Sell" then "success"
     when "Hold" then "warning"
@@ -660,12 +659,11 @@ setOrderItemAction = (form, action) ->
     when "Short" then "danger"
     when "Delete" then "danger"
     else throw "Can't get context for action #{action}"
-  for button in buttons
-    button.classList.remove('btn-success')
-    button.classList.remove('btn-warning')
-    button.classList.remove('btn-primary')
-    button.classList.remove('btn-danger')
-    button.classList.add("btn-#{context}")
+  ui.replaceClass("#order-item-#{orderitem} form.#{formClass} button[type='button']")('btn-success', 'btn-warning', 'btn-primary', 'btn-danger')("btn-#{context}")
+  button = ui.$("#order-item-#{orderitem} form.#{formClass} button[name='action']")
+  button.dataset.action = action
+  button.innerHTML = action
+  button.value = action
 
 sellOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
@@ -692,7 +690,6 @@ updateOrderPrice = (order) ->
 
 soldOrderItem = (form) ->
   { order, orderitem } = form.dataset
-  console.debug "Sold orderitem: ", { order, orderitem }
   ui.replaceClass("#order-item-#{orderitem}")('selling', 'HOLD', 'SHORT', 'OPEN')('SOLD')
 
 for event in 'checking noupdate downloading progress cached updateready obsolete error'.split(' ')
