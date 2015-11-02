@@ -521,10 +521,11 @@ Database.read = (action) ->
           reject @error.message
 Database.write = (action) ->
   (target) ->
-    (object) ->
+    (object, key) ->
       new Promise (resolve, reject) ->
-        r = target('readwrite')[action](object)
+        r = target('readwrite')[action](object, key)
         r.addEventListener 'success', ->
+          console.debug "Overwrote", object, key
           resolve(@result)
         r.addEventListener 'error', ->
           console.error @error
@@ -672,20 +673,39 @@ sellOrderItem = (target) ->
 
 openOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
-  ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'SHORT', 'HOLD')('OPEN')
+  orderitem = Number(orderitem)
+  db.orders.get(orderitem).then (object) ->
+    object.status = 'OPEN'
+    db.orders.put(object).then ->
+      ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'SHORT', 'HOLD')('OPEN')
+      changes.push(['change', 'order', 'status', 'OPEN'])
 
 holdOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
-  ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'SHORT', 'OPEN')('HOLD')
+  orderitem = Number(orderitem)
+  db.orders.get(orderitem).then (object) ->
+    object.status = 'HOLD'
+    db.orders.put(object).then ->
+      ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'SHORT', 'OPEN')('HOLD')
+      changes.push(['change', 'order', 'status', 'HOLD'])
 
 shortOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
-  ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'OPEN', 'HOLD')('SHORT')
+  orderitem = Number(orderitem)
+  db.orders.get(orderitem).then (object) ->
+    object.status = 'HOLD'
+    db.orders.put(object).then ->
+      ui.replaceClass("#order-item-#{orderitem}")('selling', 'SOLD', 'OPEN', 'HOLD')('SHORT')
+      changes.push(['change', 'order', 'status', 'SHORT'])
 
 deleteOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
+  orderitem = Number(orderitem)
   if prompt("Are you sure?")
-    ui.hide("#order-item-#{orderitem}")
+    db.orders.delete(orderitem).then ->
+      console.debug arguments
+      ui.hide("#order-item-#{orderitem}")
+      changes.push(['delete', 'order', orderitem])
 
 updateOrderItemPrice = (target) ->
   { dataset: { orderitem }, form, value } = target
@@ -695,6 +715,7 @@ updateOrderItemPrice = (target) ->
   value = Number(value or 0).toFixed(2)
   output.setAttribute('value', value)
   output.innerHTML = "$ #{value}"
+  changes.push(['change', 'order', 'price', value])
   updateOrderPrice(order)
 
 updateOrderPrice = (order) ->
