@@ -240,7 +240,8 @@ chooseSpreadsheetHandler = (event) ->
   switch type
     when 'change'
       { value } = target
-      ui.$('#choose-spreadsheet .help').innerHTML = "Checking spreadsheet..."
+      ui.hide('.alerts .synchronizing')
+      ui.$('#choose-spreadsheet form .help').innerHTML = "Checking spreadsheet..."
       ui.show('#choose-spreadsheet form .spinner')
       checkSpreadsheet(value)
         .then ({ orders, inventory }) ->
@@ -270,11 +271,10 @@ start = ->
     .then renderInventory
     .then renderOrders
     .then renderDashboard
-    .then -> ui.listen('#choose-spreadsheet')('change', 'submit')(chooseSpreadsheetHandler)
     .then -> ui.listen('#orders')('click', 'input', 'submit')(ordersHandler)
     .then -> ui.listen('#inventory')('click')(inventoryHandler)
     .then -> ui.listen('#loading')('click')(loadingHandler)
-    #.then -> ui.goto('#dashboard')
+    .then -> ui.goto('#dashboard')
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -392,15 +392,20 @@ getSpreadsheetID = ->
   new Promise (resolve, reject) ->
     { spreadsheet_id } = localStorage
     return resolve(spreadsheet_id) if spreadsheet_id
-    chooseSpreadsheet()
-    reject("You need to choose a spreadsheet.")
+    chooseSpreadsheet(resolve, reject)
 
-chooseSpreadsheet = ->
+chooseSpreadsheet = (resolve) ->
+  ui.listen('#choose-spreadsheet')('change')(chooseSpreadsheetHandler)
+  ui.hide('.alerts .synchronizing')
   ui.addClass('#choose-spreadsheet')('downloading')
   ui.goto('#choose-spreadsheet')
   getUserSpreadsheets().then (spreadsheets) ->
     ui.render('#choose-spreadsheet select')({ spreadsheets })
     ui.replaceClass('#choose-spreadsheet')('downloading')('updateready')
+    ui.listen('#choose-spreadsheet form')('submit') (event) ->
+      event.preventDefault()
+      ui.show('.alerts .synchronizing')
+      resolve(localStorage.spreadsheet_id = @spreadsheet.value)
   
 # Caches the result of f as key in storage.
 cache = (storage) ->
@@ -418,15 +423,16 @@ getUserSpreadsheets = ->
 
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
-getSpreadsheetData = (params...) ->
+getSpreadsheetData = (id, since) ->
   # cache(localStorage)('data') ->
-    console.debug "Getting spreadsheet data...", params...
-    executeAppsScriptFunction('GetChanges')(params...)
+    console.debug "Getting spreadsheet data...", id, since
+    executeAppsScriptFunction('GetChanges')(id, since)
 
 # Saves the spreadsheet data in the database - resolves to an object with
 # orders, inventory, newOrders and newInventory - the latter should have IDs,
 # and updated timestamps.
 saveSpreadsheetData = ({ orders, inventory }) ->
+  console.debug "saveSpreadsheetData", arguments
   oldOrders = oldInventory = null
   openDB
     .then -> replaceOrders(orders)
@@ -452,7 +458,7 @@ findOrCreateOrder = (order) ->
 getSpreadsheetChanges = ->
   Promise.resolve()
     .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
-    .then getSpreadsheetData
+    .then (params) -> getSpreadsheetData(params...)
     .then saveSpreadsheetData
     .then fixSpreadsheetData
     .then updateSpreadsheetData
