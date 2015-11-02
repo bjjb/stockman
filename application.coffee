@@ -303,7 +303,7 @@ renderDashboard = ->
 # Gets the inventory from the database
 getInventoryForUI = ->
   openDB.then (db) ->
-    db.inventory.getAll().then (products) ->
+    db.inventory.type.getAll().then (products) ->
       new Product(p) for p in products
 
 # Gets the orders from the database, and makes Orders objects
