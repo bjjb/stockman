@@ -1,7 +1,7 @@
 | {{#products}}
-tr(id="{{ID}}")
+tr(id="{{ID}}" class="{{status}}")
   td.type {{type}}
   td.product {{product}}
   td.total {{total}}
-  td.available(class="{{status}}") {{available}}
+  td.available {{available}}
 | {{/products}}
