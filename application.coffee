@@ -183,7 +183,6 @@ ordersHandler = (event) ->
       setOrderItemAction(form, dataset.action)
     if nodeName is 'BUTTON' and target.type is 'button' and dataset.action?
       { orderitem } = dataset
-      event.preventDefault()
       switch dataset.action
         when 'Sell' then sellOrderItem(target)
         when 'Open' then openOrderItem(target)
@@ -191,7 +190,6 @@ ordersHandler = (event) ->
         when 'Short' then shortOrderItem(target)
         when 'Delete' then deleteOrderItem(target)
         when 'Undo' then unsellOrderItem(target)
-        when 'Checkout' then checkoutOrderItem(target)
     if nodeName is 'SPAN' and id is 'clear-filter'
       form = ui.$('form[name="filter"]')
       form.reset()
@@ -660,12 +658,22 @@ updateOrderPrice = (order) ->
   output.innerHTML = "$ #{total.toFixed(2)}"
 
 soldOrderItem = (form) ->
-  { order, orderItem } = form.dataset
+  { order, orderitem } = form.dataset
+  console.debug { order, orderitem }
+  ui.replaceClass("#order-item-#{orderitem}")('selling', 'HOLD', 'SHORT', 'OPEN')('SOLD')
 
 for event in 'checking noupdate downloading progress cached updateready obsolete error'.split(' ')
   applicationCache.addEventListener event, loadingHandler
 
 console.log "Welcome to stockman v#{VERSION}"
 start()
+
+addEventListener 'online', ->
+  getUI.then (ui) ->
+    ui.replaceClass('body')('offline')('online')
+    setTimeout((-> ui.removeClass('body')('online')), 5000)
+addEventListener 'offline', ->
+  getUI.then (ui) ->
+    ui.replaceClass('body')('online')('offline')
 
 @p = console.debug.bind(console)

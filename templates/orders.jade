@@ -62,12 +62,12 @@
                         li: a(data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
                         li.divider
                           li: a(data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
-                  form.form.form-inline.selling(name='sell' data-order="{{order.id}}")
+                  form.form.form-inline.selling(name='sell' data-order="{{order.id}}" data-orderitem="{{id}}")
                     .input-group
                       span.input-group-addon $
                       input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-orderitem="{{id}}")
                       .input-group-btn
-                        button.action.btn.btn-success.action(data-orderitem="{{id}}" data-action="Sell" type='submit' name="sell" disabled) Sell
+                        button.action.btn.btn-success.action(data-orderitem="{{id}}" data-action="Checkout" type='submit' name="sell" disabled) Sell
                         button.btn.btn-success.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
                           span.caret
                           span.sr-only Choose action
