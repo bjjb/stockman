@@ -35,8 +35,8 @@ html(manifest="index.appcache")
                 li: a.text-muted(href="#orders") Closed
                 li: a.text-primary(href="#orders") All
             li: a(href="#inventory") Inventory
-            li: a(href="#log") Logs
-            li: a(href="javascript:getAuthToken.revoke()") Revoke token
+            li(hidden): a(href="#log") Logs
+            li(hidden): a(href="javascript:getAuthToken.revoke()") Revoke token
 
     main.paged
       .container.alerts
