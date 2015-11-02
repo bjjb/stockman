@@ -1,0 +1,19 @@
+{
+  "*.coffee": {
+    "type": "lib",
+    "command": "lib",
+    "alternate": "test/{}.coffee",
+    "template": ["'use strict'" ],
+    "dispatch": "./node_modules/.bin/mocha ---reporter dot test/%s.coffee"
+  },
+  "test/*.coffee": {
+    "type": "test",
+    "command": "test",
+    "alternate": "%s.coffee",
+    "template": [ "'use strict'", "", "describe '%s', ->", "  %s = require '../%s'" ],
+    "dispatch": "./node_modules/.bin/mocha --reporter dot test/%s.coffee"
+  },
+  "*": {
+    "compiler": "./node_modules/.bin/cake build"
+  }
+}

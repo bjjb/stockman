@@ -1,6 +1,6 @@
-@Stockman = Stockman = {}
-VERSION = 1
+VERSION = 2
 DEBUG = 1
+ERRORS = []
 
 GOOGLE =
   api_key: "AIzaSyDY9L74caWHWKwQt3v8PhUKJg1XrV1Sg1M"
@@ -111,11 +111,11 @@ Order::items.sold = -> i for i in @items when i.status is 'SOLD'
 Order::items.hold = -> i for i in @items when i.status is 'HOLD'
 Order::items.short = -> i for i in @items when i.status is 'SHORT'
   
-UI = ({ document, location, Promise, Mustache, setTimeout, console, sync, authorize }) ->
+UI = ({ document, location, history, Promise, Mustache, setTimeout, console, sync, authorize }) ->
   # DOM manipulation utilities
   $       = (q) => document.querySelector(q)
   $$      = (q) => e for e in document.querySelectorAll(q)
-  goto    = (q) => [lastLocation, location.hash] = [location.hash, q]
+  goto    = (to) => location.assign(to)
   show    = (qs...) -> (e.hidden = false for e in $$(q)) for q in qs
   hide    = (qs...) -> (e.hidden = true for e in $$(q)) for q in qs
   enable  = (qs...) -> (e.disabled = false for e in $$(q)) for q in qs
@@ -169,7 +169,7 @@ ui = null # A collection of helpers for modifying the DOM
 
 # A promise that resolves when the window is loaded
 getUI = new Promise (resolve, reject) ->
-  window.addEventListener 'DOMContentLoaded', -> resolve(ui = UI(@))
+  window.addEventListener 'DOMContentLoaded', -> resolve(Stockman.ui = ui = UI(@))
 
 # Handles UI events on the #orders element
 ordersHandler = (event) ->
@@ -255,7 +255,6 @@ chooseSpreadsheetHandler = (event) ->
           ui.$('#choose-spreadsheet form .help').innerHTML = "That spreadsheet appears invalid."
 
 checkSpreadsheet = (id) ->
-  console.debug "Checking spreadsheet...", id
   getSpreadsheetData(id).then ({ inventory, orders }) ->
     unless inventory? and orders?
       throw "The spreadsheet must have sheets for Orders and for Inventory."
@@ -328,12 +327,22 @@ getDashboardForUI = ->
   dashboard = { orders: {}, inventory: {} }
   openDB.then (db) ->
     Promise.all([
-      db.orders.status('OPEN').count().then (n)       -> dashboard.orders.open = n
-      db.orders.status('HOLD').count().then (n)       -> dashboard.orders.hold = n
-      db.orders.status('SHORT').count().then (n)      -> dashboard.orders.short = n
-      db.inventory.available([null, -1]).get().then (p) -> dashboard.inventory.short = p
-      db.inventory.available(0).get().then (p)        -> dashboard.inventory.out = p
-    ]).then -> dashboard
+      db.orders.status.count('OPEN').then (n) -> dashboard.orders.open = n
+      db.orders.status.count('HOLD').then (n) -> dashboard.orders.hold = n
+      db.orders.status.count('SHORT').then (n) -> dashboard.orders.short = n
+      db.inventory.available.getAll([null, -1]).then (p) -> dashboard.inventory.short = p
+      db.inventory.available.getAll(0).then (p) -> dashboard.inventory.out = p
+    ]).then ->
+      console.debug dashboard
+      { orders, inventory } = dashboard
+      { short, out } = dashboard.inventory
+      inventory.message = "You're #{-sp.available} short on #{sp.product}" if sp = short.shift()
+      inventory.message += " and #{short.length} other products" if short.length
+      return dashboard if inventory.message?
+      inventory.message = "You're out of #{sp.product}" if op = out.shift()
+      inventory.message += " and #{out.length} other products" if out.length
+      inventory.message ?= "The inventory looks good!"
+      dashboard
       
 # Gets a function to merge the second argument into the first
 merge = (first) ->
@@ -463,10 +472,61 @@ getSpreadsheetChanges = ->
 
 # Database section
 db = null
-Database = (@idb) ->
-  @[store] = new Database.Store(@, store) for store in @idb.objectStoreNames
+Database = (idb) ->
+  self = @
+  transaction = idb.transaction(idb.objectStoreNames)
+  objectStoreNames = (n for n in idb.objectStoreNames)
+  objectStoreNames.forEach (store) ->
+    f = (mode = 'readonly') -> idb.transaction(store, mode).objectStore(store)
+    ['count', 'get', 'getAll', 'openCursor', 'add', 'put', 'delete',
+    'clear'].forEach (action) ->
+      f[action] = Database[action](f)
+    indexNames = (n for n in transaction.objectStore(store).indexNames)
+    indexNames.forEach (index) ->
+      g = -> f().index(index)
+      ['count', 'get', 'getAll'].forEach (action) ->
+        g[action] = Database[action](g)
+      f[index] = g
+    self[store] = f
+  @idb = idb
   @
+Database.read = (action) ->
+  (target) ->
+    (range, direction) ->
+      new Promise (resolve, reject) ->
+        args = []
+        args.push(Database.keyRange(range)) if range?
+        args.push(direction) if direction?
+        result = []
+        r = target()[action](args...)
+        r.addEventListener 'success', ->
+          return resolve(result) unless @result?
+          return resolve(@result) unless @result.value?
+          result.push(@result.value)
+          @result.continue()
+        r.addEventListener 'error', ->
+          console.error @error
+          reject @error.message
+Database.write = (action) ->
+  (target) ->
+    (object) ->
+      new Promise (resolve, reject) ->
+        r = target('readwrite')[action](object)
+        r.addEventListener 'success', ->
+          resolve(@result)
+        r.addEventListener 'error', ->
+          console.error @error
+          reject @error.message
+Database.count = Database.read('count')
+Database.get = Database.read('get')
+Database.openCursor = Database.read('openCursor')
+Database.getAll = Database.read('openCursor')
+Database.add = Database.write('add', 'readwrite')
+Database.put = Database.write('put', 'readwrite')
+Database.delete = Database.write('delete', 'readwrite')
+Database.clear = Database.write('clear', 'readwrite')
 Database.keyRange = (arg) ->
+  console.debug "keyRange", arg
   return IDBKeyRange.only(arg) unless arg instanceof Array
   [lower, upper] = arg
   if lower?
@@ -479,88 +539,38 @@ Database.keyRange = (arg) ->
   else
     console.log "keyRange.upperBound", arg
     IDBKeyRange.upperBound(upper)
-Database::transaction = (name, mode = 'readonly') ->
-  @idb.transaction(name, mode)
-Database.Store = (@db, @name) ->
-  for index in @objectStore().indexNames
-    @[index] = (range, direction) ->
-      @index(index, range, direction)
-  @
-Database.Store::transaction = (mode = 'readonly') ->
-  @db.transaction(@name, mode)
-Database.Store::objectStore = (mode = 'readonly') ->
-  @transaction(mode).objectStore(@name)
-Database.Store::index = (index, range, direction) ->
-  new Database.Store.Index(@, index, range, direction)
-Database.Store::get = (key) ->
-  new Promise (resolve, reject) =>
-    req = @objectStore().get(key)
-    req.addEventListener 'success', -> resolve @result
-    req.addEventListener 'error', -> reject @error
-Database.Store::getAll = (key) ->
-  new Promise (resolve, reject) =>
-    result = []
-    req = @objectStore().openCursor()
-    req.addEventListener 'success', ->
-      return resolve result unless @result?
-      result.push @result.value
-      @result.continue()
-    req.addEventListener 'error', -> reject @error
-Database.Store::clear = ->
-  new Promise (resolve, reject) =>
-    req = @objectStore('readwrite').clear()
-    req.addEventListener 'success', -> resolve @result
-    req.addEventListener 'error', -> reject @error
-Database.Store::addAll = (values) ->
-  Promise.all(@add(value) for value in values)
-Database.Store::add = (value) ->
-  name = @name
-  new Promise (resolve, reject) =>
-    req = @objectStore('readwrite').add(value)
-    req.addEventListener 'success', -> resolve @result
-    req.addEventListener 'error', ->
-      console.error "Failed to add #{name}: #{@error.message} [#{@error.name}]", value
-      reject @error
-Database.Store.Index = (@store, @name, @range, @direction) ->
-  @
-Database.Store.Index::index = (mode) -> @objectStore(mode).index(@name)
-Database.Store.Index::objectStore = (mode) ->
-  @store.objectStore(mode)
-Database.Store.Index::getAll = ->
-  new Promise (resolve, reject) =>
-    result = []
-    req = @index().openCursor(@range, @direction).openCursor()
-    req.addEventListener 'success', ->
-      return resolve result unless @result?
-      result.push @result.value
-      @result.continue()
-    req.addEventListener 'error', -> reject @error
-Database.Store.Index::count = ->
-  new Promise (resolve, reject) =>
-    req = @index().count(Database.keyRange(@range))
-    req.addEventListener 'success', -> resolve @result
-    req.addEventListener 'error', -> reject @error.message
-Database.Store.Index::get = ->
-  new Promise (resolve, reject) =>
-    req = @index().get(Database.keyRange(@range))
-    req.addEventListener 'success', -> resolve @result
-    req.addEventListener 'error', -> reject @error.message
+
 openDB = new Promise (resolve, reject) ->
   migrations = [
-    (db) ->
-      os = db.createObjectStore 'orders', keyPath: 'id', autoIncrement: true
+    (e) ->
+      { result } = e
+      os = result.createObjectStore 'orders', keyPath: 'id', autoIncrement: true
       os.createIndex 'status', 'status', unique: false
       os.createIndex 'order', 'order', unique: false
       os.createIndex 'customer', 'customer', unique: false
-      os = db.createObjectStore 'inventory', keyPath: 'product'
+      os = result.createObjectStore 'inventory', keyPath: 'product'
       os.createIndex 'type', 'type', unique: false
       os.createIndex 'total', 'total', unique: false
       os.createIndex 'available', 'available', unique: false
-      os = db.createObjectStore 'changes', keyPath: 'id', autoIncrement: true
+      os = result.createObjectStore 'changes', keyPath: 'id', autoIncrement: true
       os.createIndex 'time', 'time', unique: false
+    (e) ->
+      { transaction } = e
+      os = transaction.objectStore('orders')
+      os.createIndex 'product', 'product', unique: false
+      os.createIndex 'order_status', 'order_status', unique: false
+      os.createIndex 'qty', 'qty', unique: false
+      os.createIndex 'hold_until', 'hold_until', unique: false
+      os.createIndex 'delivery_location', 'delivery_location', unique: false
+      os.createIndex 'date_sold', 'date_sold', unique: false
+      os.createIndex 'updated', 'updated', unique: false
+      os = transaction.objectStore('inventory')
+      os.createIndex 'hold', 'hold', unique: false
+      os.createIndex 'open', 'open', unique: false
+      os.createIndex 'updated', 'updated', unique: false
   ]
   migrate = ({ oldVersion, newVersion }) ->
-    Promise.all(migration(@result) for migration in migrations[oldVersion..newVersion])
+    Promise.all(migration(@) for migration in migrations[oldVersion...newVersion])
       .then debug "Migrated!"
   request = indexedDB.open('stockman', VERSION)
   #request.addEventListener 'error', -> reject @
@@ -589,7 +599,8 @@ executeAppsScriptFunction = (functionName) ->
       error = ->
         response = JSON.parse(@responseText)
         console.error("Error executing Apps Script", @error)
-        reject(@error)
+        errors.push(executeAppsScriptFunction, @error)
+        reject(@error.details.join('; '))
       handlers = { load, error }
       data.parameters = parameters
       method = 'post'
@@ -602,11 +613,11 @@ executeAppsScriptFunction = (functionName) ->
 
 replaceInventory = (products) ->
   db.inventory.clear().then ->
-    db.inventory.addAll(new Product(p) for p in products)
+    Promise.all(db.inventory.add(new Product(p)) for p in products)
 
 replaceOrders = (orderItems) ->
   db.orders.clear().then ->
-    db.orders.addAll(new OrderItem(o) for o in orderItems)
+    Promise.all(db.orders.add(new OrderItem(o)) for o in orderItems)
 
 filterOrders = (match) ->
   rex = new RegExp("#{match}", "i")
@@ -659,7 +670,7 @@ updateOrderPrice = (order) ->
 
 soldOrderItem = (form) ->
   { order, orderitem } = form.dataset
-  console.debug { order, orderitem }
+  console.debug "Sold orderitem: ", { order, orderitem }
   ui.replaceClass("#order-item-#{orderitem}")('selling', 'HOLD', 'SHORT', 'OPEN')('SOLD')
 
 for event in 'checking noupdate downloading progress cached updateready obsolete error'.split(' ')
@@ -675,5 +686,10 @@ addEventListener 'online', ->
 addEventListener 'offline', ->
   getUI.then (ui) ->
     ui.replaceClass('body')('online')('offline')
+
+errors = []
+logs = []
+changes = []
+@Stockman = { VERSION, DEBUG, Database, UI, errors, logs, changes }
 
 @p = console.debug.bind(console)
