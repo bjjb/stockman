@@ -13,7 +13,7 @@
           | {{#items}}
           .li.list-group-item.order-item(
               id="order-item-{{id}}"
-              class="list-group-item-{{context}} {{status}}{{#comment}} comment{{/comment}}"
+              class="{{status}}{{#comment}} comment{{/comment}}"
               data-order="{{order.id}}")
             .container-fluid
               .row

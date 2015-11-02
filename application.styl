@@ -129,6 +129,15 @@ button .fa, button .glyphicon
       font-size large
       z-index 2
       opacity 0.3
+  .list-group-item.OPEN
+    @extend .list-group-item-info
+  .list-group-item.HOLD
+    @extend .list-group-item-warning
+  .list-group-item.SHORT
+    @extend .list-group-item-danger
+  .list-group-item.SOLD
+    @extend .list-group-item-success
+    
   .order-item
     .details
       margin 0.5em auto
