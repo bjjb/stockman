@@ -83,7 +83,7 @@ OrderItem::getTotal = ->
   total += Number(item.getPrice()) for item in @items
   total.toFixed(2)
 
-Product = (data) ->
+Product = (data, @id) ->
   @[k] = v for own k, v of data when v isnt ''
   @[k] = new Date(@[k]) for k in ['updated'] when @[k]
   @
@@ -317,7 +317,7 @@ renderDashboard = ->
 getInventoryForUI = ->
   openDB.then (db) ->
     db.inventory.type.getAll().then (products) ->
-      new Product(p) for p in products
+      new Product(p, i) for p, i in products
 
 # Gets the orders from the database, and makes Orders objects
 getOrdersForUI = ->
@@ -377,7 +377,6 @@ formatDatabaseChanges = (changes) ->
 # where the key is the spreadsheet name, the first sub-array is a list of
 updateSpreadsheet = (changes) ->
   debug "Syncing changes to DB", changes
-  
 
 # Show that some synchronization is happening
 showSynchronizing = ->
@@ -403,6 +402,7 @@ showSynchronizationFailure = (reason) ->
 # Gets the time the app and the spreadsheet were last synced.
 getLastSyncedTime = ->
   { lastSynced } = localStorage
+  indexedDB.deleteDatabase('stockman') unless lastSynced
   new Date(lastSynced) if lastSynced?
 
 # Gets the ID of the spreadsheet - tries to get it from localStorage, shows
@@ -443,7 +443,7 @@ getUserSpreadsheets = ->
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
 getSpreadsheetData = (id, since) ->
-  # cache(localStorage)('data') ->
+  cache(localStorage)('data') ->
     console.debug "Getting spreadsheet data...", id, since
     executeAppsScriptFunction('GetChanges')(id, since)
 
@@ -455,9 +455,7 @@ saveSpreadsheetData = ({ orders, inventory }) ->
   oldOrders = oldInventory = null
   openDB
     .then -> replaceOrders(orders)
-    .then -> (newOrders) -> [oldOrders, orders] = [orders, newOrders]
     .then -> replaceInventory(inventory)
-    .then -> (newInventory) -> [oldInventory, inventory] = [inventory, newInventory]
 
 # Fixes missing data in orders and inventories (ID, Updated, Order, in ORDERS)
 fixSpreadsheetData = ({ oldOrders, oldInventory, orders, inventory }) ->
