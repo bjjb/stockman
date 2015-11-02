@@ -20,12 +20,14 @@ html(manifest="index.appcache")
             span.icon-bar
             span.icon-bar
             span.icon-bar
-          a.navbar-brand(href="#dashboard") L&S Stock
+          a.navbar-brand(href="#dashboard")
+            span.icon.glyphicon.glyphicon-piggy-bank
+            | L&S Stock
         #navbar.collapse.navbar-collapse
           ul.nav.navbar-nav.navbar-right
             // TODO: set active class on li
             li.dropdown
-              a.dropdown-toggle(href="#" data-toggle="dropdown")
+              a.dropdown-toggle(data-toggle="dropdown")
                 | Orders
                 span.caret
               ul.dropdown-menu
@@ -108,7 +110,7 @@ html(manifest="index.appcache")
             span.icon.glyphicon.glyphicon-scale
             | Inventory
           button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
-        table.table.table-striped.table-condensed
+        table.table
           caption.
             Total is the amount in the freezer; Available is the number left
             after considering Open and Hold orders.

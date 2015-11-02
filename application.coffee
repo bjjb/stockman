@@ -115,7 +115,8 @@ UI = ({ document, location, history, Promise, Mustache, setTimeout, console, syn
   # DOM manipulation utilities
   $       = (q) => document.querySelector(q)
   $$      = (q) => e for e in document.querySelectorAll(q)
-  goto    = (to) => location.assign(to)
+  goto    = (to) =>
+    location.assign(to)
   show    = (qs...) -> (e.hidden = false for e in $$(q)) for q in qs
   hide    = (qs...) -> (e.hidden = true for e in $$(q)) for q in qs
   enable  = (qs...) -> (e.disabled = false for e in $$(q)) for q in qs
@@ -675,6 +676,15 @@ soldOrderItem = (form) ->
 
 for event in 'checking noupdate downloading progress cached updateready obsolete error'.split(' ')
   applicationCache.addEventListener event, loadingHandler
+getUI.then (ui) ->
+  ui.listen('nav')('click') (event) ->
+    { target } = event
+    { type, nodeType, href, classList, dataset } = target
+    if href and !dataset.toggle?
+      event.preventDefault()
+      ui.goto(href)
+      ui.removeClass('.navbar-collapse')('in')
+      false
 
 console.log "Welcome to stockman v#{VERSION}"
 start()
@@ -690,6 +700,7 @@ addEventListener 'offline', ->
 errors = []
 logs = []
 changes = []
+
 @Stockman = { VERSION, DEBUG, Database, UI, errors, logs, changes }
 
 @p = console.debug.bind(console)
