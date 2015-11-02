@@ -192,7 +192,7 @@ ordersHandler = (event) ->
         when 'Delete' then deleteOrderItem(target)
         when 'Undo' then unsellOrderItem(target)
     if nodeName is 'SPAN' and id is 'clear-filter'
-      form = ui.$('form[name="filter"]')
+      form = ui.$('#orders form[name="filter"]')
       form.reset()
       filterOrders(form.filter.value)
   if type is 'input'
@@ -210,6 +210,20 @@ ordersHandler = (event) ->
 
 inventoryHandler = (event) ->
   { target, type } = event
+  { name, id, classList, dataset, nodeName } = target
+  if type is 'click'
+    if nodeName is 'SPAN' and id is 'clear-filter'
+      form = ui.$('#inventory form[name="filter"]')
+      form.reset()
+      filterProducts(form.filter.value)
+  if type is 'input'
+    if target.name is 'filter'
+      filterProducts(target.value)
+  if type is 'submit'
+    event.preventDefault()
+    switch target.name
+      when 'filter' then filterProducts(target.filter.value)
+      else throw "Unhandled #inventory submit: #{target.name}"
 
 loadingHandler = (event) ->
   { target, type } = event
@@ -270,7 +284,7 @@ start = ->
     .then renderOrders
     .then renderDashboard
     .then -> ui.listen('#orders')('click', 'input', 'submit')(ordersHandler)
-    .then -> ui.listen('#inventory')('click')(inventoryHandler)
+    .then -> ui.listen('#inventory')('click', 'input', 'submit')(inventoryHandler)
     .then -> ui.listen('#loading')('click')(loadingHandler)
     .then -> ui.goto('#dashboard')
 
@@ -627,6 +641,13 @@ filterOrders = (match) ->
     customerName = ui.$("##{order.id} .customer").innerText
     order.hidden = !customerName.match(rex)
 
+filterProducts = (match) ->
+  rex = new RegExp("#{match}", "i")
+  products = ui.$$('#inventory tr.product')
+  for product in products
+    productName = product.querySelector('.product').innerText
+    product.hidden = !productName.match(rex)
+
 setOrderItemAction = (form, action) ->
   button = form.querySelector('button.action')
   button.dataset.action = action
@@ -676,15 +697,6 @@ soldOrderItem = (form) ->
 
 for event in 'checking noupdate downloading progress cached updateready obsolete error'.split(' ')
   applicationCache.addEventListener event, loadingHandler
-getUI.then (ui) ->
-  ui.listen('nav')('click') (event) ->
-    { target } = event
-    { type, nodeType, href, classList, dataset } = target
-    if href and !dataset.toggle?
-      event.preventDefault()
-      ui.goto(href)
-      ui.removeClass('.navbar-collapse')('in')
-      false
 
 console.log "Welcome to stockman v#{VERSION}"
 start()

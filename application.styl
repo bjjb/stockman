@@ -87,6 +87,18 @@ tr
 button .fa, button .glyphicon
   margin 1em
 
+// Fixes for filter clear buttons
+form.filter
+  position relative
+  .clear
+    cursor pointer
+    position absolute
+    top 0.8em
+    right 0.5em
+    font-size large
+    z-index 2
+    opacity 0.3
+
 // Animation for spinners
 @-webkit-keyframes spin
   0%
@@ -129,16 +141,6 @@ button .fa, button .glyphicon
       display block // make the whole header clickable
     a:hover
       text-decoration none // don't underline on hover
-  form.filter
-    position relative
-    .clear
-      cursor pointer
-      position absolute
-      top 0.8em
-      right 0.5em
-      font-size large
-      z-index 2
-      opacity 0.3
   .list-group-item.OPEN
     @extend .list-group-item-info
   .list-group-item.HOLD
