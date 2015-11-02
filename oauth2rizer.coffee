@@ -64,9 +64,8 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
   remember ?= (result) ->
     console.debug "oauth2rizer remember", JSON.stringify(arguments)
     { access_token, expires_in, token_type, refresh_token } = result
-    #return revoke(access_token) unless localStorage.refresh_token? or refresh_token?
     expires_at = new Date()
-    expires_at.setTime(expires_at.getTime() + expires_in * 1000)
+    expires_at.setTime(expires_at.getTime() + expires_in * 600)
     expires_at = expires_at.getTime()
     { host } = location
     localStorage.host = host
