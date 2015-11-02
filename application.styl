@@ -26,6 +26,7 @@ nav
       margin-right 0.5em
       vertical-align top
   margin-bottom 0 !important
+
 main
   position relative // so we can absolutely position children
   &.paged
@@ -63,7 +64,7 @@ main
       display inherit
 
 #loading logo
-  opacity 0.2
+  // 
 
 .page-header
   h1
@@ -82,10 +83,6 @@ tr
 
 [hidden]
   display none !important
-
-// Fixes some button spacing
-button .fa, button .glyphicon
-  margin 1em
 
 // Fixes for filter clear buttons
 form.filter
@@ -126,12 +123,17 @@ form.filter
   table
     th
       font-size small
-    .total, .available
+    td
+      vertical-align middle
+    td, td
+      .value
+        display block
+    .number
       text-align center
-    tbody
-      tr
-        td
-          line-height 3em // more tappable space
+  h4
+    span
+      margin-left 1em
+    
 
 #dashboard
   

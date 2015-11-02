@@ -209,7 +209,9 @@ ordersHandler = (event) ->
 inventoryHandler = (event) ->
   { target, type } = event
   { name, id, classList, dataset, nodeName } = target
+  classNames = (className for className in classList)
   if type is 'click'
+    console.debug target
     if nodeName is 'SPAN' and id is 'clear-filter'
       form = ui.$('#inventory form[name="filter"]')
       form.reset()
@@ -282,7 +284,7 @@ start = ->
     .then renderOrders
     .then renderDashboard
     .then -> ui.listen('#orders')('click', 'input', 'submit')(ordersHandler)
-    .then -> ui.listen('#inventory')('click', 'input', 'submit')(inventoryHandler)
+    #.then -> ui.listen('#inventory')('click', 'input', 'submit')(inventoryHandler)
     .then -> ui.listen('#loading')('click')(loadingHandler)
     .then -> ui.goto('#dashboard')
 
@@ -443,7 +445,7 @@ getUserSpreadsheets = ->
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
 getSpreadsheetData = (id, since) ->
-  cache(localStorage)('data') ->
+  cache(sessionStorage)('spreadsheet') ->
     console.debug "Getting spreadsheet data...", id, since
     executeAppsScriptFunction('GetChanges')(id, since)
 
@@ -745,6 +747,25 @@ addEventListener 'offline', ->
 errors = []
 logs = []
 changes = []
+
+getUI.then ->
+  $('#inventory').on 'click', 'td.total', ($e) ->
+    $('#inventory .modal')
+      .find('[name=total]')
+      .val($($e.target).text())
+      .parents('.modal')
+      .children('.modal-header .product')
+      .text($($e.target).siblings('.value.product').text())
+    $('#inventory .modal').modal()
+  $('#inventory').on 'click', 'button[name=minus1]', ->
+    $(@).parents('.input-group').children('input[type=number]').val(->  Number($(@).val()) - 1)
+  $('#inventory').on 'click', 'button[name=plus1]', ->
+    $(@).parents('.input-group').children('input[type=number]').val(->  Number($(@).val()) + 1)
+  $('#inventory').on 'submit', 'form', ($event) ->
+    $event.preventDefault()
+    id = $(@).val('id')[0]
+    $("#product-#{id} .total").text($(@).val('total'))
+    $("#inventory .modal").modal('hide')
 
 @Stockman = { VERSION, DEBUG, Database, UI, errors, logs, changes }
 
