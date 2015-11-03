@@ -69,3 +69,5 @@ Database.keyRange = (arg) ->
       IDBKeyRange.lowerBound(lower)
   else
     IDBKeyRange.upperBound(upper)
+
+@IndexTheBee = Database

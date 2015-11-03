@@ -1,0 +1,23 @@
+extends layout
+block content
+  section#loading.container.page.paged
+    .page-header
+      h1
+        span.icon.glyphicon.glyphicon-refresh
+        | Loading
+    .container.checking.page
+      p Checking for updates...
+    .container.cached.page
+      p App is ready to go
+    .container.updateready.page
+      form.form.form-inline
+        .form-group.text-center
+          p A new version is available!
+          button.btn.btn-lg.btn-success(href='/')
+            span.glyphicon.glyphicon-download
+            | Upgrade
+    .container.downloading.page
+      form.form.form-inline
+        .form-group
+          label(for="download-progress") Downloading the latest version
+          progress.form-control#download-progress Downloading a new version...

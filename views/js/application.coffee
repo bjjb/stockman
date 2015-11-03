@@ -29,8 +29,11 @@ ajax =
       xhr.setRequestHeader(k, v) for own k, v of headers
       xhr.addEventListener(k, v) for own k, v of handlers
       xhr.send(data)
+
+# Writes stuff to the console and to the logs
 debug = (args...) ->
-  if DEBUG
+  if sessionStorage.debug
+    console?.debug(args...)
     getUI.then ->
       ul = document.getElementById('logs')
       li = document.createElement('LI')
@@ -48,6 +51,12 @@ getProperty = (o) -> (k) -> if o[k]? then Promise.resolve(o[k]) else Promise.rej
 random = (a) -> a[Math.floor(Math.random() * a.length)]
 utils = { rejolve, urlencode, ajax, taskChain, arrayify, getProperty, putProperty, random }
 
+errors = []
+logs = []
+changes = []
+p = console.debug.bind(console)
+
+Stockman = { errors, logs, changes, p }
 
 OrderItem = (data) ->
   @[k] = v for own k, v of data when v isnt ''
@@ -111,66 +120,11 @@ Order::items.sold = -> i for i in @items when i.status is 'SOLD'
 Order::items.hold = -> i for i in @items when i.status is 'HOLD'
 Order::items.short = -> i for i in @items when i.status is 'SHORT'
   
-UI = ({ document, location, history, Promise, Mustache, setTimeout, console, sync, authorize }) ->
-  # DOM manipulation utilities
-  $       = (q) => document.querySelector(q)
-  $$      = (q) => e for e in document.querySelectorAll(q)
-  goto    = (to) =>
-    location.assign(to)
-  show    = (qs...) -> (e.hidden = false for e in $$(q)) for q in qs
-  hide    = (qs...) -> (e.hidden = true for e in $$(q)) for q in qs
-  enable  = (qs...) -> (e.disabled = false for e in $$(q)) for q in qs
-  disable = (qs...) -> (e.disabled = true for e in $$(q)) for q in qs
-  addClass = (qs...) -> (classes...) -> ((e.classList.add(c) for c in classes) for e in $$(q)) for q in qs
-  removeClass = (qs...) ->
-    (classes...) ->
-      for q in qs
-        for e in $$(q)
-          for c in classes
-            e.classList.remove(x) for x in e.classList when x?.match(new RegExp("^#{c}$"))
-  replaceClass = (qs...) ->
-    (remove...) ->
-      (add...) ->
-        (removeClass(q)(c) for c in remove) for q in qs
-        (addClass(q)(c) for c in add) for q in qs
-  render = (qs...) ->
-    partials = (k) -> $(k).innerHTML or throw "Partial template missing: #{k}"
-    (view) ->
-      for q in qs
-        for e in $$(q)
-          return console.error("No template", e) unless t = e.dataset.template
-          return console.error("Template missing", t) unless t = $(t)?.innerHTML
-          e.innerHTML = Mustache.render(t, view, partials)
-      view
-  listen = (qs...) ->
-    (events...) ->
-      (callbacks...) ->
-          for q in qs
-            for event in events
-              for callback in callbacks
-                e.removeEventListener(event, callback) for e in $$(q)
-                e.addEventListener(event, callback)    for e in $$(q)
-  ignore = (qs...) ->
-    (events...) ->
-      (callbacks...) ->
-        for q in qs
-          for event in events
-            for callback in callbacks
-              e.removeEventListener(event, callback) for e in $$(q)
-  update = ({ orders, inventory }) ->
-    render('#orders .panel-group.orders')({orders})
-    render('#inventory tbody.products')({inventory})
-    { orders, inventory }
-  {$, $$, goto, show, hide, enable, disable, render, update, addClass,
-    removeClass, replaceClass, listen, ignore }
-
-Changes = ({ ui }) ->
-
-ui = null # A collection of helpers for modifying the DOM
-
+ui = null
 # A promise that resolves when the window is loaded
 getUI = new Promise (resolve, reject) ->
-  window.addEventListener 'DOMContentLoaded', -> resolve(Stockman.ui = ui = UI(@))
+  window.addEventListener 'DOMContentLoaded', ->
+    resolve(Stockman.ui = ui = MVStar(@))
 
 # Handles UI events on the #orders element
 ordersHandler = (event) ->
@@ -205,7 +159,6 @@ ordersHandler = (event) ->
       when 'sell' then soldOrderItem(target)
       else throw "Unhandled #orders submit: #{target.name}"
     
-
 inventoryHandler = (event) ->
   { target, type } = event
   { name, id, classList, dataset, nodeName } = target
@@ -236,6 +189,8 @@ inventoryHandler = (event) ->
 
 loadingHandler = (event) ->
   { target, type } = event
+  console.debug type, target, event, @
+
   switch type
     when 'checking'
       ui.addClass('#loading')(type)
@@ -287,8 +242,8 @@ checkSpreadsheet = (id) ->
 # Starts the whole thing
 start = ->
   getUI
-    .then -> ui.goto('#loading')
-    .then synchronize
+    .then initialize # start from scratch, if needed
+    .then synchronize # pull in database changes
     .then renderInventory
     .then renderOrders
     .then renderDashboard
@@ -592,12 +547,18 @@ openDB = new Promise (resolve, reject) ->
       os.createIndex 'updated', 'updated', unique: false
   ]
   migrate = ({ oldVersion, newVersion }) ->
+    console.log "Migrating from #{oldVersion} → #{newVersion}"
     Promise.all(migration(@) for migration in migrations[oldVersion...newVersion])
-      .then debug "Migrated!"
+      .then console.log("Migrated!")
   request = indexedDB.open('stockman', VERSION)
-  #request.addEventListener 'error', -> reject @
-  request.addEventListener 'success', -> resolve(db = Stockman.db = new Database(@result))
-  request.addEventListener 'blocked', -> reject @
+  request.addEventListener 'error', ->
+    console.error arguments, @
+    reject @error.message
+  request.addEventListener 'success', ->
+    resolve(db = Stockman.db = new IndexTheBee(@result))
+  request.addEventListener 'blocked', ->
+    console.error arguments, @
+    reject @error.message
   request.addEventListener 'upgradeneeded', migrate
 
 
@@ -753,10 +714,5 @@ addEventListener 'offline', ->
   getUI.then (ui) ->
     ui.replaceClass('body')('online')('offline')
 
-errors = []
-logs = []
-changes = []
-
-@Stockman = { VERSION, DEBUG, Database, UI, errors, logs, changes }
-
+@Stockman = Stockman
 @p = console.debug.bind(console)

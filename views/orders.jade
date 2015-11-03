@@ -1,0 +1,21 @@
+extends layout
+
+block content
+
+  #orders.container
+    .page-header
+      h1
+        span.icon.glyphicon.glyphicon-shopping-cart
+        | Orders
+      button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewOrder')
+    form.form.filter(name='filter')
+      .form-group
+        .input-group.input-group-lg
+          label.input-group-addon(for="filter-input")
+            span.glyphicon.glyphicon-search
+          input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a customer")
+        span#clear-filter.clear.glyphicon.glyphicon-remove-circle
+    .orders(data-template='#orders script.orders')
+    script.orders(type='text/html')
+      include ./templates/orders
+

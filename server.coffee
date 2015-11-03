@@ -1,8 +1,9 @@
-{ readFile } = require 'fs'
+{ stat, readFile } = require 'fs'
 { extname } = require 'path'
 coffee = require 'coffee-script'
 stylus = require 'stylus'
 bootstrap = require 'bootstrap-styl'
+mustache = require 'mustache'
 
 server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
   port        ?= process.env.PORT or 3000
@@ -22,18 +23,31 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
 
   app.use (req, res, next) ->
     return next() unless extname(req.path) is '.js'
-    filename = "#{app.get('views')}/#{req.path.replace(/\.js$/, '.coffee')}"
+    filename = "#{app.get('views')}#{req.path.replace(/\.js$/, '.coffee')}"
     sourceMap = true
     readFile filename, 'utf8', (err, data) ->
       throw err if err?
       { js, v3SourceMap, sourceMap } = coffee.compile(data, { sourceMap, filename })
       res.set 'Content-Type', 'text/javascript'
-      console.log "Rendered #{filename}"
       res.end(js)
+      console.log "Rendered #{filename}"
+
+  app.use (req, res, next) ->
+    return next() unless req.path is '/index.appcache'
+    filename = "#{app.get('views')}#{req.path}"
+    readFile filename, 'utf8', (err, data) ->
+      throw err if err?
+      { name, version } = require './package'
+      stat 'views', (err, stats) ->
+        throw err if err
+        date = stats.mtime
+        appcache = mustache.render(data, { name, version, date })
+        res.end(appcache)
+        console.log "Rendered #{filename} (#{date})"
 
   app.use (req, res, next) ->
     return next() unless extname(req.path) is '.css'
-    filename = "#{app.get('views')}/#{req.path.replace(/\.css$/, '.styl')}"
+    filename = "#{app.get('views')}#{req.path.replace(/\.css$/, '.styl')}"
     readFile filename, 'utf8', (err, data) ->
       throw err if err?
       stylus(data)
@@ -43,10 +57,17 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
         .render (err, css) ->
           throw err if err?
           res.set 'Content-Type', 'text/css'
-          console.log "Rendered #{filename}"
           res.end(css)
+          console.log "Rendered #{filename}"
 
   app.use(middleware...) for middleware in middlewares
+
+  app.get '/', (req, res) -> res.render 'index'
+  app.get '/orders', (req, res) -> res.render 'orders'
+  app.get '/inventory', (req, res) -> res.render 'inventory'
+  app.get '/settings', (req, res) -> res.render 'settings'
+  app.get '/images/logo.svg', (req, res) -> readFile 'views/images/logo.svg', (err, data) -> res.end(data)
+  app.get '/favicon.ico', (req, res) -> res.end()
 
   app.listen port, ->
     { address, port } = @address()

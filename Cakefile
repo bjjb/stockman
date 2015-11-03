@@ -1,8 +1,13 @@
-SRC  = '.'
+# Where jade, stylus, coffee-script and other files live
+SRC  = 'views'
+# Where the HTML, CSS, JavaScript and other files appear
 DIST = 'public'
 
+# Print to the console only if the string isn't empty
 log = (x) ->
   console.log(x.trim()) if x?.trim()
+
+# Promise wrappers around Node functions
 ls = (d) ->
   new Promise (resolve, reject) ->
     require('fs').readdir d, (error, entries) ->
@@ -28,6 +33,7 @@ mkdir = (d) ->
     require('fs').mkdir d, (err) ->
       return reject(err) if err? and err.code isnt 'EEXIST'
       resolve(d)
+# Like child_process.exec, but only for files in node_modules/bin
 exec = (cmd) ->
   new Promise (resolve, reject) ->
     p = require('child_process').exec "node_modules/.bin/#{cmd}"
@@ -35,31 +41,41 @@ exec = (cmd) ->
     p.stderr.on 'data', log
     p.on 'exit', resolve
     p.on 'error', reject
+
+# Returns a copy function, which takes a destination
 copy = (files...) ->
   (d = 'DIST') ->
     { createReadStream, createWriteStream } = require 'fs'
     createReadStream("#{SRC}/#{f}").pipe(createWriteStream("#{d}/#{f}")) for f in files
+
+# Render mustache data using 'src' as a template to 'dest'
 mustache = (view, src, dest) ->
   new Promise (resolve, reject) ->
     { readFile, writeFile } = require 'fs'
     readFile src, 'utf8', (error, data) ->
       writeFile dest, require('mustache').render(data, view), resolve
-dist   = -> mkdir(DIST).then(copy('favicon.ico', 'logo.svg'))
-html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
-css    = -> exec "stylus -u bootstrap-styl -o #{DIST} -m  #{SRC}/*.styl"
-js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
+
+# Replaces the index.appcache with a newly timestamped file
 appcache = ->
   { name, version } = require './package'
   date = new Date().toISOString()
   mustache({ name, version, date }, "#{SRC}/index.appcache", "#{DIST}/index.appcache")
+
+# Task functions
+dist   = -> mkdir(DIST).then(copy('favicon.ico', 'logo.svg'))
+html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
+css    = -> exec "stylus -u bootstrap-styl -o #{DIST} -m  #{SRC}/*.styl"
+js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
 build  = -> Promise.all [dist(), appcache(), html(), css(), js()]
 watch  = -> Promise.all [build(), watch.html(), watch.css(), watch.js()]
 watch.html     = -> appcache().then -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
 watch.css      = -> appcache().then -> exec "stylus -u bootstrap-styl -w -o #{DIST} -m  #{SRC}/*.styl"
 watch.js       = -> appcache().then -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
-server  = -> build().then Promise.race([watch(), serve()])
-serve = -> require('./server')(staticDirs: ['public'], port: 3000, logLevel: 'dev')
+serve          = -> require('./server')(staticDirs: ['public'], port: 3000, logLevel: 'dev')
+dev            = -> build().then Promise.race([watch(), serve()])
 
+# Actual tasks
 task "build",  "compile the site",              build
 task "watch",  "watch for changes and compile", watch
-task "server", "serve the site",                server
+task "serve",  "serve the site",                serve
+task "dev",    "watch and serve",               dev

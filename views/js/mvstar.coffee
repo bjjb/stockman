@@ -1,7 +1,7 @@
 'use strict'
 # MV*, a browser UI behaviour library.
 
-MVStar = ({ document, location, history, Promise, Mustache, setTimeout, console, sync, authorize }) ->
+MVStar = ({ document, location, history, Promise, Mustache, setTimeout, console, sync, authorize } = @) ->
   # DOM manipulation utilities
   $       = (q) => document.querySelector(q)
   $$      = (q) => e for e in document.querySelectorAll(q)
