@@ -4,12 +4,12 @@
   "description": "A HTML5 stock and order manager, backed by Google Drive",
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha",
-    "start": "coffee server.coffee"
+    "test":  "/node_modules/.bin/mocha",
+    "start": "node_modules/.bin/coffee server.coffee"
   },
   "repository": {
     "type": "git",
-    "url": "http://bitbucket.org/bjjb/stockman"
+    "url":  "http://bitbucket.org/bjjb/stockman"
   },
   "keywords": [
     "stock",
@@ -32,6 +32,6 @@
     "mustache": "^2.1.3"
   },
   "engines": {
-    "node": "0.12.7"
+    "node": "4.2.1"
   }
 }

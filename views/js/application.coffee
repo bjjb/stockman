@@ -424,8 +424,10 @@ saveSpreadsheetData = ({ orders, inventory }) ->
     .then -> replaceInventory(inventory)
 
 # Fixes missing data in orders and inventories (ID, Updated, Order, in ORDERS)
-fixSpreadsheetData = ({ oldOrders, oldInventory, orders, inventory }) ->
-  Promise.resolve "Sending the missing IDs"
+fixData = ({ orders, inventory }) ->
+  orderItems = (new OrderItem(item) for item in orders)
+  Promise.all(item.save() for item in orderItems)
+    .then createMissingOrders
 
 # Sends the changes to the spreadsheet
 updateSpreadsheetData = ({ orders, inventory }) ->
@@ -442,9 +444,8 @@ getSpreadsheetChanges = ->
   Promise.resolve()
     .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
     .then (params) -> getSpreadsheetData(params...)
-    .then saveSpreadsheetData
-    .then fixSpreadsheetData
-    .then updateSpreadsheetData
+    .then fixData
+    .then saveData
 
 # Database section
 db = null
