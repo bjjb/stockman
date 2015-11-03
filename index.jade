@@ -7,6 +7,7 @@ html(manifest="index.appcache")
     link(rel="stylesheet" href="/application.css")
     link(rel="stylesheet" href="/components/font-awesome/css/font-awesome.css")
     script(src="/oauth2rizer.js")
+    script(src="/mvstar.js")
     script(src="/components/jquery/dist/jquery.min.js")
     script(src="/components/bootstrap/dist/js/bootstrap.min.js")
     script(src="/components/mustache.js/mustache.min.js")
@@ -120,10 +121,10 @@ html(manifest="index.appcache")
         table.table.products
           thead
             tr
-              th: .type Type
-              th: .product Name
-              th: .total.number Total
-              th: .available.number Available
+              th.type Type
+              th.product Name
+              th.total.number Total
+              th.available.number Available
           tbody.products(data-template='#inventory script.product')
         script.product(type='text/html')
           include ./templates/inventory
@@ -131,25 +132,25 @@ html(manifest="index.appcache")
           .modal-dialog
             .modal-content
               .modal-header
-                button.close(type='button' data-dismiss='modal')
-                h4
-                  | Total
-                  span.product
+                button.close(type='button' data-dismiss='modal') x
+                h4.product
               .modal-body
                 form.form(action='#' name='edit-product')
-                  .form-group
-                    label(for="product-total") Total
-                    .input-group
-                      .input-group-btn
-                        button.btn.btn-primary(type="button" name='minus1')
-                          span.icon.glyphicon.glyphicon-minus
-                      input.form-control(type="number" name="total" required)
-                      .input-group-btn
-                        button.btn.btn-primary(type="button" name='plus1')
-                          span.icon.glyphicon.glyphicon-plus
-                  .form-group.actions
-                    button.btn.btn-default(type='button') Close
-                    button.btn.btn-primary(type='submit') Update Total
+                  .row
+                    .col-sm-6.col-sm-offset-3
+                      .form-group
+                        label(for="product-total") Total
+                        .input-group
+                          .input-group-btn
+                            button.btn.btn-primary(type="button" name='minus1')
+                              span.icon.glyphicon.glyphicon-minus
+                          input.form-control(type="number" name="total" required)
+                          .input-group-btn
+                            button.btn.btn-primary(type="button" name='plus1')
+                              span.icon.glyphicon.glyphicon-plus
+              .modal-footer
+                button.btn.btn-default(type='button') Close
+                button.btn.btn-primary(type='submit') Update Total
 
       section#choose-spreadsheet.page.paged.container
         .page-header

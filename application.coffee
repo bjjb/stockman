@@ -216,6 +216,15 @@ inventoryHandler = (event) ->
       form = ui.$('#inventory form[name="filter"]')
       form.reset()
       filterProducts(form.filter.value)
+      return
+    if nodeName is 'TD'
+      if 'total' in classNames
+        tr = target.parentElement
+        product = tr.querySelector('td.product').innerHTML
+        available = target.innerHTML
+        ui.$('#inventory .modal .product').innerHTML = product
+        ui.$('#inventory .modal input').value = available
+        $('#inventory .modal').modal('show')
   if type is 'input'
     if target.name is 'filter'
       filterProducts(target.value)
@@ -284,7 +293,7 @@ start = ->
     .then renderOrders
     .then renderDashboard
     .then -> ui.listen('#orders')('click', 'input', 'submit')(ordersHandler)
-    #.then -> ui.listen('#inventory')('click', 'input', 'submit')(inventoryHandler)
+    .then -> ui.listen('#inventory')('click', 'input', 'submit')(inventoryHandler)
     .then -> ui.listen('#loading')('click')(loadingHandler)
     .then -> ui.goto('#dashboard')
 
@@ -747,25 +756,6 @@ addEventListener 'offline', ->
 errors = []
 logs = []
 changes = []
-
-getUI.then ->
-  $('#inventory').on 'click', 'td.total', ($e) ->
-    $('#inventory .modal')
-      .find('[name=total]')
-      .val($($e.target).text())
-      .parents('.modal')
-      .children('.modal-header .product')
-      .text($($e.target).siblings('.value.product').text())
-    $('#inventory .modal').modal()
-  $('#inventory').on 'click', 'button[name=minus1]', ->
-    $(@).parents('.input-group').children('input[type=number]').val(->  Number($(@).val()) - 1)
-  $('#inventory').on 'click', 'button[name=plus1]', ->
-    $(@).parents('.input-group').children('input[type=number]').val(->  Number($(@).val()) + 1)
-  $('#inventory').on 'submit', 'form', ($event) ->
-    $event.preventDefault()
-    id = $(@).val('id')[0]
-    $("#product-#{id} .total").text($(@).val('total'))
-    $("#inventory .modal").modal('hide')
 
 @Stockman = { VERSION, DEBUG, Database, UI, errors, logs, changes }
 
