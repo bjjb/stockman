@@ -58,9 +58,13 @@ p = console.debug.bind(console)
 
 Stockman = { errors, logs, changes, p, Order, OrderItem, Product }
 
-OrderItem = ({ id, order_id, product, qty, weight, price, status, comment, hold_until, date_sold, updated }) ->
+OrderItem = ({
+  id, order_id, customer, product, qty, weight, price, status, comment,
+  hold_until, date_sold, updated
+}) ->
   @id = Number(id) if id
-  @order_id = Number(order_id)
+  @customer = customer or throw Error("No customer!")
+  @order_id = Number(order_id) if order_id
   @product = product or throw Error("No product!")
   @qty = Number(qty) or 1
   @weight = Number(weight) if weight
@@ -73,32 +77,26 @@ OrderItem = ({ id, order_id, product, qty, weight, price, status, comment, hold_
   @updated = if updated then new Date(updated) else new Date()
   @
 
-# Creates an OrderItem in the database, and resolves to the newly created one.
-OrderItem.create = ({ id, order_id, product, qty, weight, price, status, comment,
-  hold_until, date_sold, updated }) ->
-  orderItem = new OrderItem({order_id, product, qty, weight, price, status, comment, hold_until, date_sold, updated })
-  console.debug "OrderItem.create", orderItem
+# Creates an OrderItem in the database.
+OrderItem.create = ({
+  order_id, customer, product, qty, weight, price, status, comment,
+  hold_until, date_sold, updated
+}) ->
+  orderItem = new OrderItem({
+    order_id, customer, product, qty, weight, price, status, comment,
+    hold_until, date_sold, updated
+  })
   orderItem.save()
 
 # Promises to create or update the OrderItem
 OrderItem::save = ->
   @updated = new Date()
   openDB.then (db) =>
-    if @id? then db.orderitems.put(@, @id).then => @
+    if @id? then db.orderitems.put(@).then => @
     else
       db.orderitems.add(@).then (id) =>
         @id = id
         @
-
-# Promises to get the item's order. Resolves to null if there's no order yet.
-OrderItem::getOrder = ->
-  { order } = @
-  openDB.then (db) ->
-    return unless order
-    id = order
-    db.orders.get(id).then (order) ->
-      return null unless order.length
-      new Order(order)
 
 OrderItem::getPrice = Number(@price ? 0).toFixed(2)
 OrderItem::bsClass = ->
@@ -137,26 +135,39 @@ Product::status = ->
   if @available is 0 then return 'warning'
   if @available < 0 then return 'danger'
 
-Order = ({ customer, delivery_location, comment, updated }) ->
+Order = ({
+  order_id, customer, status, hold_until, delivery_location, date_sold, price,
+  comment, updated
+}) ->
+  @order_id = Number(order_id) if order_id?
   @customer = customer or throw "No customer!"
+  @status = 'OPEN'
   delivery_location ?= localStorage.default_delivery_location
   @delivery_location = delivery_location if delivery_location
   @comment = comment if comment
+  @price = Number(price) if price
+  @hold_until = new Date(hold_until) if hold_until
+  @date_sold = new Date(date_sold) if date_sold
   @updated = if updated then new Date(updated) else new Date()
   @
 
-Order.create = ({ customer, delivery_location, comment, updated }) ->
-  order = new Order({ customer, delivery_location, comment, updated })
-  order.save()
+Order.create = ({
+  customer, status, hold_until, delivery_location, date_sold, price, comment,
+  updated
+}) ->
+  new Order({
+    customer, status, hold_until, delivery_location, date_sold, price,
+    comment, updated
+  }).save()
 
 Order::save = ->
-  updated = new Date()
+  @updated = new Date()
   openDB.then (db) =>
-    if @id
+    if @order_id
       db.orders.put(@).then => @
     else
       db.orders.add(@).then (id) =>
-        @id = id
+        @order_id = id
         @
 
 Order::status = ->
@@ -463,19 +474,43 @@ getSpreadsheetData = (id, since) ->
   console.debug "Getting spreadsheet data...", id, since
   executeAppsScriptFunction('GetChanges')(id, since)
 
-fixMissingOrderIDs = (rows) ->
-  fixes = {}
-  getID = (o, row) ->
-    OrderItem.create(o).then ({ id, updated }) ->
-      fixes[row] = { id, updated }
-  Promise.all(getID(o, row) for [o, row] in rows).then ->
-    getSpreadsheetID().then (ssid) ->
-      executeAppsScriptFunction("SetRowProperties")(ssid, { orders: fixes }).then ->
-        console.debug arguments
-# Assigns missing IDs
+# Assigns IDs to order items which don't have them. They get saved as part of
+# the process. Returns a function that expects orderitems, and will resolve tp
+# them after they're all fixed.
+fixMissingIDs = (orderitems) ->
+  fix = (o, i) ->
+    o.save().then ({ id, updated }) -> [i, 'id', id, 'updated', updated ]
+  Promise.all(fix(o, i) for o, i in orderitems when !o.id).then (fixes) ->
+    getSpreadsheetID()
+      .then (ssid) -> executeAppsScriptFunction("SetRowProperties")(ssid, { 'ORDERS': fixes })
+      .then -> orderitems
+
+# Makes missing orders for order items, and assigns the order_id to the order
+# item, after updating the spreadsheet.
+fixMissingOrderIDs = (orderitems) ->
+  orders = {} # Promises to create orders, grouped by customer
+  fix = (o, i) ->
+    Promise.resolve(orders[o.customer] ?= Order.create(o)).then ({order_id}) -> [ i, 'order_id', o.order_id = order_id ]
+  # 1. ensure the orders and items which have IDs actually exist in the DB
+  Promise.all [
+    Promise.all((new Order(o).save()) for o in orderitems when o.order_id)
+    Promise.all((new OrderItem(o).save()) for o in orderitems when o.id)
+  ]
+    # 2. then create orders for the items with no order_id (grouped by
+    # customer)
+    .then -> Promise.all(fix(o, i) for o, i in orderitems when !o.order_id).then (fixes) ->
+      # 3. update the database with the new order_ids
+      getSpreadsheetID()
+        .then (ssid) -> executeAppsScriptFunction("SetRowProperties")(ssid, { 'ORDERS': fixes })
+        .then -> orderitems
+
+# Assigns missing OrderIDs and IDs
 fixData = ({ orders, inventory }) ->
-  fixMissingOrderIDs([o, i] for o, i in orders when !o.id)
-    .then throw "OK"
+  Promise.resolve(orders)
+    .then (orders) -> new OrderItem(o) for o in orders
+    .then fixMissingOrderIDs
+    .then fixMissingIDs
+    throw "Finish set IDs"
     throw "Split order-items without prices"
     throw "Create orders!"
 
@@ -501,9 +536,13 @@ openDB = new Promise (resolve, reject) ->
   migrations = [
     (e) ->
       { result } = e
-      os = result.createObjectStore 'orders', keyPath: 'id', autoIncrement: true
+      os = result.createObjectStore 'orders', keyPath: 'order_id', autoIncrement: true
       os.createIndex 'customer', 'customer', unique: false
+      os.createIndex 'status', 'status', unique: false
+      os.createIndex 'hold_until', 'hold_until', unique: false
       os.createIndex 'delivery_location', 'delivery_location', unique: false
+      os.createIndex 'date_sold', 'date_sold', unique: false
+      os.createIndex 'price', 'price', unique: false
       os.createIndex 'comment', 'comment', unique: false
       os.createIndex 'updated', 'updated', unique: false
       os = result.createObjectStore 'orderitems', keyPath: 'id', autoIncrement: true
@@ -516,6 +555,7 @@ openDB = new Promise (resolve, reject) ->
       os.createIndex 'status', 'status', unique: false
       os.createIndex 'comment', 'comment', unique: false
       os.createIndex 'hold_until', 'hold_until', unique: false
+      os.createIndex 'delivery_location', 'delivery_location', unique: false
       os.createIndex 'date_sold', 'date_sold', unique: false
       os.createIndex 'updated', 'updated', unique: false
       os = result.createObjectStore 'products', keyPath: 'id', autoIncrement: true
@@ -549,6 +589,14 @@ Stockman.getAuthToken = getAuthToken
 
 # Gets a function which can execute the given Apps Script function remotely
 executeAppsScriptFunction = (functionName) ->
+  sanitize = (params) ->
+    return params unless typeof params is 'object'
+    return params.toISOString() if params instanceof Date
+    return params.map(sanitize) if params instanceof Array
+    result = {}
+    result[sanitize(k)] = sanitize(v) for own k, v of params
+    result
+
   { scripts_uri, script_id } = GOOGLE
   url = "#{scripts_uri}/#{script_id}:run"
   data = { function: functionName, devMode: true }
@@ -567,11 +615,13 @@ executeAppsScriptFunction = (functionName) ->
         reject(@error.details.join('; '))
       handlers = { load, error }
       data.parameters = parameters
+      data.parameters = sanitize(parameters)
       method = 'post'
       post = (token) ->
         method = 'post'
         headers = { Authorization: "Bearer #{token}" }
         data = JSON.stringify(data)
+        console.debug data
         ajax.request({ method, url, headers, data, handlers })
       getAuthToken().then(post)
 
