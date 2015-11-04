@@ -41,13 +41,18 @@ Database.read = (action) ->
 Database.write = (action) ->
   (target) ->
     (object, key) ->
+      args = []
+      args.push(object) if object?
+      args.push(key) if key
       new Promise (resolve, reject) ->
-        r = target('readwrite')[action](object, key)
+        try
+          r = target('readwrite')[action](args...)
+        catch e
+          console.error e, Object.getOwnPropertyNames(object)
+          return reject e.message
         r.addEventListener 'success', ->
-          console.debug "Overwrote", object, key
           resolve(@result)
         r.addEventListener 'error', ->
-          console.error @error
           reject @error.message
 
 Database.count = Database.read('count')
@@ -58,6 +63,8 @@ Database.add = Database.write('add', 'readwrite')
 Database.put = Database.write('put', 'readwrite')
 Database.delete = Database.write('delete', 'readwrite')
 Database.clear = Database.write('clear', 'readwrite')
+Database::clear = ->
+  Promise.all[@[store].clear() for store in @idb.objectStoreNames]
 
 Database.keyRange = (arg) ->
   return IDBKeyRange.only(arg) unless arg instanceof Array

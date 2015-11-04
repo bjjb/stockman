@@ -11,36 +11,35 @@ body
   height 100%
   min-width 270px
   background linear-gradient(rgba(white,90%),rgba(white,90%)),
-              url(images/logo.svg) center no-repeat fixed
-  .alerts > *
-    display none
-  for state in (synchronizing fatal offline online)
-    &.{state} .alerts > .{state}
-      display inherit
+              url(../images/logo.svg) center no-repeat fixed
 
 nav
+  .navbar
+    margin-bottom 0
   .navbar-brand
     img
       height 1em
-    span
-      margin-right 0.5em
+    span.icon
+      margin-right 0.285em
       vertical-align top
   margin-bottom 0 !important
 
 main
   position relative // so we can absolutely position children
-  &.paged
-    > .page
-      display none
-    > .page:target
-      display inherit
 
-.paged
+.target-pages
   > .page
     display none
-  for state in (checking downloading cached noupdate updateready fetching error waiting)
-    &.{state}
-      > .page.{state}
+  > .page:target
+    display inherit
+
+.class-paged
+  > *
+    display none
+for k in (error offline online synchronizing appcache)
+  body.{k}
+    .class-paged
+      > .{k}
         display inherit
 
 .huge
@@ -49,19 +48,20 @@ main
 .massive
   font-size 5em
 
-.alerts
-  position absolute
-  top 0
-  left 0
-  right 0
-
-.alerts .synchronizing
-  opacity 0.8
-  & > *
-    display none
-  for state in (working error success)
-    &.{state} > .{state}
-      display inherit
+body 
+  aside
+    position relative
+    z-index 1
+    .alert
+      opacity 0.8
+      position absolute
+      top 0
+      left 0
+      right 0
+      .icon
+        position absolute
+        right 1em
+        top 1em
 
 #loading logo
   // 
@@ -102,22 +102,53 @@ form.filter
     transform rotate(0deg);
   100%
     transform rotate(359deg);
+@-moz-keyframes spin
+  0%
+    transform rotate(0deg);
+  100%
+    transform rotate(359deg);
 @keyframes spin
     transform rotate(0deg);
   100%
     transform rotate(359deg);
+// Animation for pulsing
+@-webkit-keyframes pulse
+  0%
+    opacity 1
+  50%
+    opacity .4
+  100%
+    opacity .99
+@-moz-keyframes pulse
+  0%
+    opacity 1
+  50%
+    opacity .4
+  100%
+    opacity .99
+@keyframes pulse
+  from
+    opacity 1
+  50%
+    opacity .4
+  to
+    opacity .99
 
-.glyphicon-spin
+.icon.spin
   animation: spin 1s infinite linear;
+
+.icon.pulse
+  animation: pulse 3s infinite ease-in-out;
 
 
 #choose-spreadsheet
   form
     position relative
-    .spinner
-      position absolute
-      right 0
-
+  .icon.spin
+    display none
+&.downloading, &.checking
+  .icon.spin
+    display inherit !important
 
 #inventory
   table

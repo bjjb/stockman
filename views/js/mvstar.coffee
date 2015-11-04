@@ -1,15 +1,19 @@
 'use strict'
 # MV*, a browser UI behaviour library.
 
-MVStar = ({ document, location, history, Promise, Mustache, setTimeout, console, sync, authorize } = @) ->
+MVStar = ({ document, location, history, Element, Promise, Mustache, setTimeout, console, sync, authorize } = @) ->
   # DOM manipulation utilities
-  $       = (q) => document.querySelector(q)
-  $$      = (q) => e for e in document.querySelectorAll(q)
+  $ = (q) =>
+    return q if q instanceof Element
+    document.querySelector(q)
+  $$ = (qs) =>
+    return [qs] if qs instanceof Element
+    e for e in document.querySelectorAll(qs)
   goto    = (to) =>
     location.assign(to)
-  show    = (qs...) -> (e.hidden = false for e in $$(q)) for q in qs
-  hide    = (qs...) -> (e.hidden = true for e in $$(q)) for q in qs
-  enable  = (qs...) -> (e.disabled = false for e in $$(q)) for q in qs
+  show = (qs...) -> (e.hidden = false for e in $$(q)) for q in qs
+  hide = (qs...) -> (e.hidden = true for e in $$(q)) for q in qs
+  enable = (qs...) -> (e.disabled = false for e in $$(q)) for q in qs
   disable = (qs...) -> (e.disabled = true for e in $$(q)) for q in qs
   addClass = (qs...) -> (classes...) -> ((e.classList.add(c) for c in classes) for e in $$(q)) for q in qs
   removeClass = (qs...) ->

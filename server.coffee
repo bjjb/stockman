@@ -27,10 +27,13 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
     sourceMap = true
     readFile filename, 'utf8', (err, data) ->
       throw err if err?
-      { js, v3SourceMap, sourceMap } = coffee.compile(data, { sourceMap, filename })
+      try
+        { js, v3SourceMap, sourceMap } = coffee.compile(data, { sourceMap, filename })
+      catch e
+        console.error e
+        return res.status(500).end()
       res.set 'Content-Type', 'text/javascript'
       res.end(js)
-      console.log "Rendered #{filename}"
 
   app.use (req, res, next) ->
     return next() unless req.path is '/index.appcache'
@@ -43,7 +46,6 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
         date = stats.mtime
         appcache = mustache.render(data, { name, version, date })
         res.end(appcache)
-        console.log "Rendered #{filename} (#{date})"
 
   app.use (req, res, next) ->
     return next() unless extname(req.path) is '.css'
@@ -58,7 +60,6 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
           throw err if err?
           res.set 'Content-Type', 'text/css'
           res.end(css)
-          console.log "Rendered #{filename}"
 
   app.use(middleware...) for middleware in middlewares
 
@@ -66,7 +67,9 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
   app.get '/orders', (req, res) -> res.render 'orders'
   app.get '/inventory', (req, res) -> res.render 'inventory'
   app.get '/settings', (req, res) -> res.render 'settings'
-  app.get '/images/logo.svg', (req, res) -> readFile 'views/images/logo.svg', (err, data) -> res.end(data)
+  app.get '/images/logo.svg', (req, res) ->
+    readFile 'views/images/logo.svg', (err, data) ->
+      res.set('content-type', 'image/svg+xml').end(data)
   app.get '/favicon.ico', (req, res) -> res.end()
 
   app.listen port, ->

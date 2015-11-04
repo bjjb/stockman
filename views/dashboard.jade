@@ -1,13 +1,9 @@
-extends layout
-block content
-  section#dashboard.page.container
-    .container
-      .page-header
-        h1
-          span.icon.glyphicon.glyphicon-dashboard
-          | Dashboard
+.page-header
+  h1
+    span.icon.glyphicon.glyphicon-dashboard
+    | Dashboard
 
-      .row.statuses(data-template="#dashboard script")
-      script(type="text/html")
-        include ./templates/dashboard
+.row.statuses(data-template="#dashboard script")
 
+script(type="text/html")
+  include ./templates/dashboard

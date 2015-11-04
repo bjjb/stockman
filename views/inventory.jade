@@ -1,150 +1,23 @@
-extends layout
+.page-header
+  h1 
+    span.icon.glyphicon.glyphicon-scale
+    | Inventory
+  button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
 
-block content
-
-  section#inventory.page.container
-    .page-header
-      h1 
-        span.icon.glyphicon.glyphicon-scale
-        | Inventory
-      button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
-    form.form.filter(name='filter')
-      .form-group
-        .input-group.input-group-lg
-          label.input-group-addon(for="filter-input")
-            span.glyphicon.glyphicon-search
-          input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a product")
-        span#clear-filter.clear.glyphicon.glyphicon-remove-circle
-    table.table.products
-      thead
-        tr
-          th.type Type
-          th.product Name
-          th.total.number Total
-          th.available.number Available
-      tbody.products(data-template='#inventory script.product')
-    script.product(type='text/html')
-      include ./templates/inventory
-    .modal.fade.edit-available
-      .modal-dialog
-        .modal-content
-          .modal-header
-            button.close(type='button' data-dismiss='modal') x
-            h4.product
-          .modal-body
-            form.form(action='#' name='edit-product')
-              .row
-                .col-sm-6.col-sm-offset-3
-                  .form-group
-                    label(for="product-total") Total
-                    .input-group
-                      .input-group-btn
-                        button.btn.btn-primary(type="button" name='minus1')
-                          span.icon.glyphicon.glyphicon-minus
-                      input.form-control(type="number" name="total" required)
-                      .input-group-btn
-                        button.btn.btn-primary(type="button" name='plus1')
-                          span.icon.glyphicon.glyphicon-plus
-          .modal-footer
-            button.btn.btn-default(type='button') Close
-            button.btn.btn-primary(type='submit') Update Total
-
-  section#choose-spreadsheet.page.paged.container
-    .page-header
-      h1
-        span.icon.glyphicon.glyphicon-list-alt
-        | Spreadsheet
-    .page.downloading
-      span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
-      p.lead.text-info Downloading a list of your spreadsheets from your Google Drive...
-    .page.error
-      p.lead.text-danger Uh oh! Failed to get your spreadsheets!
-      p.reason.text-danger
-    .page.updateready
-      form.form
-        .form-group
-          label.control-label(for='spreadsheet-select') Choose your spreadsheet
-          select.form-control.input-lg#spreadsheet-select(name='spreadsheet' data-template='#choose-spreadsheet script')
-          span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin(hidden)
-          .help-block.help.
-              Once you have your spreadsheet linked, the data will be used
-              here
-        button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Use this spreadsheet
-    script(type="text/html")
-      include ./templates/choose-spreadsheet
-
-  section#log.page
-    ul#logs
-  section#inventory.page.container
-    .page-header
-      h1 
-        span.icon.glyphicon.glyphicon-scale
-        | Inventory
-      button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
-    form.form.filter(name='filter')
-      .form-group
-        .input-group.input-group-lg
-          label.input-group-addon(for="filter-input")
-            span.glyphicon.glyphicon-search
-          input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a product")
-        span#clear-filter.clear.glyphicon.glyphicon-remove-circle
-    table.table.products
-      thead
-        tr
-          th.type Type
-          th.product Name
-          th.total.number Total
-          th.available.number Available
-      tbody.products(data-template='#inventory script.product')
-    script.product(type='text/html')
-      include ./templates/inventory
-    .modal.fade.edit-available
-      .modal-dialog
-        .modal-content
-          .modal-header
-            button.close(type='button' data-dismiss='modal') x
-            h4.product
-          .modal-body
-            form.form(action='#' name='edit-product')
-              .row
-                .col-sm-6.col-sm-offset-3
-                  .form-group
-                    label(for="product-total") Total
-                    .input-group
-                      .input-group-btn
-                        button.btn.btn-primary(type="button" name='minus1')
-                          span.icon.glyphicon.glyphicon-minus
-                      input.form-control(type="number" name="total" required)
-                      .input-group-btn
-                        button.btn.btn-primary(type="button" name='plus1')
-                          span.icon.glyphicon.glyphicon-plus
-          .modal-footer
-            button.btn.btn-default(type='button') Close
-            button.btn.btn-primary(type='submit') Update Total
-
-  section#choose-spreadsheet.page.paged.container
-    .page-header
-      h1
-        span.icon.glyphicon.glyphicon-list-alt
-        | Spreadsheet
-    .page.downloading
-      span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin.pull-right
-      p.lead.text-info Downloading a list of your spreadsheets from your Google Drive...
-    .page.error
-      p.lead.text-danger Uh oh! Failed to get your spreadsheets!
-      p.reason.text-danger
-    .page.updateready
-      form.form
-        .form-group
-          label.control-label(for='spreadsheet-select') Choose your spreadsheet
-          select.form-control.input-lg#spreadsheet-select(name='spreadsheet' data-template='#choose-spreadsheet script')
-          span.spinner.glyphicon.glyphicon-refresh.glyphicon-spin(hidden)
-          .help-block.help.
-              Once you have your spreadsheet linked, the data will be used
-              here
-        button.btn.btn-lg.btn-block.btn-default(type='submit' disabled) Use this spreadsheet
-    script(type="text/html")
-      include ./templates/choose-spreadsheet
-
-  section#log.page
-    ul#logs
+form.form.filter(name='filter')
+  .form-group
+    .input-group.input-group-lg
+      label.input-group-addon(for="filter-input")
+        span.glyphicon.glyphicon-search
+      input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a product")
+    span#clear-filter.clear.glyphicon.glyphicon-remove-circle
+      
+table.table.products(data-collection="products")
+  thead
+    tr
+      th.type Type
+      th.product Name
+      th.total.number Total
+      th.available.number Available
+  tbody.products(data-template='script.product')
+  script.product(type='text/html'): include ./templates/inventory

@@ -33,3 +33,6 @@ CACHE:
 /js/indexthebee.js
 /js/mvstar.js
 /js/application.js
+
+NETWORK:
+http://weinre.herokuapp.com/target/target-script-min.js#anonymous
