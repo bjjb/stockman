@@ -469,7 +469,9 @@ fixMissingOrderIDs = (rows) ->
     OrderItem.create(o).then ({ id, updated }) ->
       fixes[row] = { id, updated }
   Promise.all(getID(o, row) for [o, row] in rows).then ->
-    console.debug "Fixes: ", fixes
+    getSpreadsheetID().then (ssid) ->
+      executeAppsScriptFunction("SetRowProperties")(ssid, { orders: fixes }).then ->
+        console.debug arguments
 # Assigns missing IDs
 fixData = ({ orders, inventory }) ->
   fixMissingOrderIDs([o, i] for o, i in orders when !o.id)
