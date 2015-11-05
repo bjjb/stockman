@@ -46,9 +46,10 @@ ajax =
 
 # Writes stuff to the console and to the logs
 debug = (arg) ->
-  if sessionStorage.debug
-    log.push(arg)
-  arg
+  console.debug arguments...
+  log.push(arg)
+  getUI.then (ui) -> ui.render('#log')
+
 debug.set = (x) -> sessionStorage.debug = x
 Stockman.debug = debug
 
@@ -74,7 +75,7 @@ changes =
   before: (date) -> openDB.then (db) -> db.changes.getAll([null, date])
 
 Stockman.changes = changes
-Stockman.p = p = console.debug.bind(console)
+Stockman.p = p = console?.debug?.bind(console)
 @p ?= p # VERY handy for seeing promises on the console.
 
 OrderItem = ({
@@ -110,8 +111,9 @@ OrderItem.create = ({
 # Promises to create or update the OrderItem
 OrderItem::save = ->
   @updated = new Date()
+  debug "Saving order item #{@id} (#{@customer})"
   openDB.then (db) =>
-    if @id? then db.orderitems.put(@).then => @
+    if @id then db.orderitems.put(@).then => @
     else
       db.orderitems.add(@).then (id) =>
         @id = id
@@ -282,7 +284,7 @@ inventoryHandler = (event) ->
   { name, id, classList, dataset, nodeName } = target
   classNames = (className for className in classList)
   if type is 'click'
-    console.debug target
+    debug target
     if nodeName is 'SPAN' and id is 'clear-filter'
       form = ui.$('#inventory form[name="filter"]')
       form.reset()
@@ -290,10 +292,8 @@ inventoryHandler = (event) ->
       return
     if nodeName is 'TD'
       if 'total' in classNames
-        # Simple version
         openDB
           .then (db) -> db.products.get(Number(dataset.product))
-          .then debug
           .then (product) ->
             result = prompt("How many #{product.product} have you in total?", product.total)
             product.total = Number(result)
@@ -333,25 +333,49 @@ applicationCacheHandler = (event) ->
     when 'error'
       getUI.then (ui) -> ui.replaceClass('#loading')('checking')('error')
 
+settingsHandler = (event) ->
+  { type, target } = event
+  { name, id, classList, dataset } = target
+  if type is 'click'
+    debug "SETTINGS CLICK"
+    event.preventDefault()
+    if name is 'upgrade'
+      applicationCache.addEventListener 'updateready', ->
+        applicationCache.swapCache()
+      applicationCache.update()
+      location.reload()
+    else if name is 'powerwash'
+      event.preventDefault()
+      powerwash()
+    else if name is 'synchronize'
+      event.preventDefault()
+      synchronize()
+      target.disabled = true
+    else if name is 'clear-database'
+      openDB
+        .then (db) -> db.clear()
+    else
+      console.warn "Unexpected click in settings", event
+
 spreadsheetHandler = (event) ->
   { type, target } = event
   switch type
     when 'change'
       { value } = target
-      ui.replaceClass('#choose-spreadsheet')('error', 'updateready')('checking')
+      ui.replaceClass('#spreadsheet')('error', 'updateready')('checking')
       ui.disable target
       checkSpreadsheet(value)
         .then ({ orders, inventory }) ->
           ui.enable target
-          ui.replaceClass('#choose-spreadsheet')('checking')('updateready')
-          ui.replaceClass('#choose-spreadsheet form')('has-error', 'has-warning')('has-success')
-          ui.enable('#choose-spreadsheet button')
+          ui.replaceClass('#spreadsheet')('checking')('updateready')
+          ui.replaceClass('#spreadsheet form')('has-error', 'has-warning')('has-success')
+          ui.enable('#spreadsheet button')
           sessionStorage.spreadsheet = JSON.stringify({ orders, inventory }) # cache it
         .catch (message) ->
           ui.enable target
-          ui.replaceClass('#choose-spreadsheet')('checking')('error')
-          ui.replaceClass('#choose-spreadsheet form')('has-success', 'has-warning')('has-error')
-          ui.disable('#choose-spreadsheet form button')
+          ui.replaceClass('#spreadsheet')('checking')('error')
+          ui.replaceClass('#spreadsheet form')('has-success', 'has-warning')('has-error')
+          ui.disable('#spreadsheet form button')
     when 'submit'
       event.preventDefault()
       { spreadsheet, submit } = target
@@ -364,26 +388,48 @@ spreadsheetHandler = (event) ->
       false
 
 checkSpreadsheet = (id) ->
+  debug "Checking spreadsheet..."
   getSpreadsheetData(id).then ({ inventory, orders }) ->
     unless inventory? and orders?
       throw "The spreadsheet must have sheets for Orders and for Inventory."
     { inventory, orders }
 
 importSpreadsheet = ({ orders, inventory }) ->
+  debug "Importing the spreadsheet..."
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = 'Importing data...'
   Promise.resolve({ orders, inventory })
     .then fixData
     .then saveData
     
 # Starts the whole thing
 start = ->
-  synchronize() # pull in database changes
-  getUI.then (ui) -> ui.goto('#dashboard')
+  debug "Starting..."
+  openDB.then (db) ->
+    debug "Opened DB"
+    db.products.count().then (count) ->
+      debug "Counted products: #{count}"
+      debug "Is there a spreadsheet? #{localStorage.spreadsheet}"
+      return setup() unless localStorage.spreadsheet
+      sync = getLastSyncedTime()
+      debug "Last synced time: #{sync}"
+      if sync? and sync > new Date() - SYNC_INTERVAL
+        debug "No need to sync."
+        getUI.then (ui) -> ui.goto('#dashboard')
+      else
+        debug "Need to synchronize!"
+        synchronize().then ->
+          getUI.then (ui) -> ui.goto('#dashboard')
+
+# Goes to the spreadsheet page
+setup = ->
+  getUI.then (ui) -> ui.goto('#spreadsheet')
 
 showError = (message) ->
   console.error(if message instanceof Error then message else Error(message))
   getUI.then (ui) ->
     ui.addClass('body')('error')
-    ui.$('.alert.error .message').innerHTML = message?.toString()
+    ui.$('.alert.error .message').innerHTML = JSON.stringify(message)
+    throw message
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -391,7 +437,8 @@ synchronize = ->
   hideSynchronizing = -> getUI.then (ui) -> ui.removeClass('body')('synchronizing')
   failSynchronizing = (reason) -> hideSynchronizing().then -> showError(reason)
 
-  Promise.resolve()
+  getUI
+    .then ui.$('.synchronizing .message').innerHTML = 'Synchronizing...'
     .then showSynchronizing
     .then getSpreadsheetChanges
     .then importSpreadsheet
@@ -399,11 +446,11 @@ synchronize = ->
     .then updateSpreadsheet
     .then hideSynchronizing
     .then -> console.debug(changes)
-    #.catch failSynchronizing
+    .catch failSynchronizing
 
 # Render the inventory section
 renderInventory = ->
-  console.debug "Rendering inventory..."
+  debug "Rendering inventory..."
   getUI
     .then getInventoryForUI
     .then ui.render('#inventory')
@@ -411,30 +458,52 @@ renderInventory = ->
 
 # Render the settings section
 renderSettings = ->
-  console.debug "Rendering settings..."
+  debug "Rendering settings..."
   getUI
     .then getSettingsForUI
     .then ui.render('#settings')
+    .then ui.listen('#settings')('change', 'click', 'submit')(settingsHandler)
 
+# Render the spreadsheet section
+renderSpreadsheet = ->
+  getUI.then (ui) ->
+    ui.listen('#spreadsheet')('change', 'click', 'submit')(spreadsheetHandler)
+    ui.addClass('#spreadsheet')('downloading')
+    ui.disable('#spreadsheet select')
+    ui.goto('#spreadsheet')
+    getUserSpreadsheets().then (spreadsheets) ->
+      ui.render('#spreadsheet')({ spreadsheets })
+      ui.enable('#spreadsheet select')
+      ui.replaceClass('#spreadsheet')('downloading')('updateready')
+  
+# Caches the result of f as key in storage.
+cache = (storage) ->
+  (key) ->
+    (f) ->
+      return Promise.resolve(JSON.parse(storage.getItem(key))) if storage[key]
+      f().then (result) ->
+        storage.setItem(key, JSON.stringify(result)) if DEBUG?
+        result
 # Render the orders section
 renderOrders = (status) ->
-  console.debug "Rendering orders..."
+  debug "Rendering orders..."
   getUI
     .then -> getOrdersForUI(status)
     .then ui.render('#orders')
+    .then ui.listen('#orders')('click', 'input', 'submit')(ordersHandler)
 
 # Render the dashboard
 renderDashboard = ->
-  console.debug "Rendering dashboard..."
+  debug "Rendering dashboard..."
   getUI
     .then getDashboardForUI
     .then ui.render('#dashboard')
 
 # Render the log
 renderLog = ->
-  console.debug "Rendering log..."
+  debug "Rendering log..."
   getUI
-    .then ui.render('#log')({log})
+    .then ui.render('#log')(log: log.reverse())
 
 # Gets the inventory from the database
 getInventoryForUI = ->
@@ -445,13 +514,11 @@ getInventoryForUI = ->
 
 # Gets values for the settings page
 getSettingsForUI = ->
-  getUserSpreadsheets().then (spreadsheets) ->
-    { spreadsheets }
+  {}
 
 # Gets the orders from the database, and makes Orders objects
 getOrdersForUI = (status) ->
   Order.all(status).then (orders) ->
-    console.debug "Orders for UI", orders, status
     { status, orders }
 
 # Gets the numbers of openOrders, heldOrders, shortOrders, and a random
@@ -465,14 +532,16 @@ getDashboardForUI = ->
       db.orderitems.status.count('SHORT').then (n) -> dashboard.orders.short = n
       db.products.available.getAll([null, -1]).then (p) -> dashboard.inventory.short = p
       db.products.available.getAll(0).then (p) -> dashboard.inventory.out = p
+      db.products.count().then (c) -> dashboard.inventory.count = c
     ]).then ->
       { orders, inventory } = dashboard
-      { short, out } = dashboard.inventory
+      { short, out, count } = dashboard.inventory
       inventory.message = "You're #{-sp.available} short on #{sp.product}" if sp = short.shift()
       inventory.message += " and #{short.length} other products" if short.length
       return dashboard if inventory.message?
       inventory.message = "You're out of #{sp.product}" if op = out.shift()
       inventory.message += " and #{out.length} other products" if out.length
+      inventory.message = "You have no products!" if count is 0
       inventory.message ?= "The inventory looks good!"
       console.debug dashboard
       dashboard
@@ -493,6 +562,7 @@ getChanges = ->
 # To delete, send ['DELETE',<id>]
 # To add, send ['ADD',<id>,<property>,<value>,...]
 updateSpreadsheet = (changes) ->
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = "Sending changes..."
   getSpreadsheetID().then (ssid) ->
     executeAppsScriptFunction("ApplyChanges")(ssid, changes)
       .then -> localStorage.lastSynced = new Date()
@@ -505,35 +575,20 @@ getLastSyncedTime = ->
 # Gets the ID of the spreadsheet - tries to get it from localStorage, shows
 # the chooser otherwise.
 getSpreadsheetID = ->
+  debug "Getting spreadsheet ID..."
   new Promise (resolve, reject) ->
     { spreadsheet } = localStorage
     return resolve(spreadsheet) if spreadsheet
     getUI.then (ui) ->
+      debug "No spreadsheet ID in session storage - going to settings."
       ui.goto('#settings')
-      reject()
+      reject("No spreadsheet selected.")
 
 # Lets you forget the ID of the spreadsheet.
 getSpreadsheetID.refresh = ->
   delete localStorage.spreadsheet
   getSpreadsheetID()
 
-chooseSpreadsheet = ->
-  getUI.then (ui) ->
-    ui.addClass('#choose-spreadsheet')('downloading')
-    ui.disable('#spreadsheet-select')
-    getUserSpreadsheets().then (spreadsheets) ->
-      ui.render('#spreadsheet-select')({ spreadsheets })
-      ui.enable('#spreadsheet-select')
-      ui.replaceClass('#choose-spreadsheet')('downloading')('updateready')
-  
-# Caches the result of f as key in storage.
-cache = (storage) ->
-  (key) ->
-    (f) ->
-      return Promise.resolve(JSON.parse(storage.getItem(key))) if storage[key]
-      f().then (result) ->
-        storage.setItem(key, JSON.stringify(result)) if DEBUG?
-        result
 
 # Gets a list of spreadsheets in the user's Google Drive. Returns an array of
 # objects with id and name.
@@ -549,24 +604,30 @@ getUserSpreadsheets.refresh = ->
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
 getSpreadsheetData = (id, since) ->
-  console.debug "Getting spreadsheet data...", id, since
+  debug "Getting spreadsheet data..."
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = 'Getting data...'
+  debug "Getting spreadsheet data...", id, since
   executeAppsScriptFunction('GetChanges')(id, since)
 
 # Assigns IDs to order items which don't have them. They get saved as part of
 # the process. Returns a function that expects orderitems, and will resolve to
 # them after they're all fixed.
 fixMissingOrderItemIDs = (orderitems) ->
+  debug "Fixing missing order item IDs..."
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = "Fixing item IDs..."
   fix = (o, i) ->
     o.save().then ({ id, updated }) -> [i, 'id', id, 'updated', updated ]
   Promise.all(fix(o, i) for o, i in orderitems when !o.id).then (fixes) ->
-    getSpreadsheetID()
-      .then (ssid) -> executeAppsScriptFunction("SetRowProperties")(ssid, { 'ORDERS': fixes })
-      .then -> orderitems
+    getSpreadsheetID().then (ssid) ->
+      debug "Sending #{fixes.length} fixes to ORDERS..."
+      executeAppsScriptFunction("SetRowProperties")(ssid, { 'ORDERS': fixes })
+    .then -> orderitems
 
 # Assigns IDs to products in the inventory that don't have them. They get
 # saved as part of the process. Returns a function that expects products, and
 # will resolve to them after they're all fixed,
 fixMissingProductIDs = (products) ->
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = "Fixing product IDs..."
   fix = (p, i) ->
     p.save().then ({ id, updated }) -> [i, 'id', id, 'updated', updated ]
   Promise.all(fix(p, i) for p, i in products when !p.id).then (fixes) ->
@@ -577,6 +638,8 @@ fixMissingProductIDs = (products) ->
 # Makes missing orders for order items, and assigns the order_id to the order
 # item, after updating the spreadsheet.
 fixMissingOrderIDs = (orderitems) ->
+  debug "Fixing missing order IDs..."
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = "Fixing order IDs..."
   orders = {} # Promises to create orders, grouped by customer
   fix = (o, i) ->
     Promise.resolve(orders[o.customer] ?= Order.create(o)).then ({order_id}) -> [ i, 'order_id', o.order_id = order_id ]
@@ -594,14 +657,18 @@ fixMissingOrderIDs = (orderitems) ->
         .then -> orderitems
 
 saveData = ({ orderitems, products }) ->
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = "Saving records..."
   Promise.resolve({ orderitems, products })
     .then Promise.all(order.save() for order in orderitems)
     .then Promise.all(product.save() for product in products)
-    .then -> console.debug "Saved #{orderitems.length} orders and #{products.length} products."
+    .then -> debug "Saved #{orderitems.length} orders and #{products.length} products."
+    .then -> renderDashboard()
+    .then -> getUI.then (ui) -> ui.goto('#dashboard')
 
 # Assigns missing OrderIDs and IDs
 fixData = ({ orders, inventory }) ->
-  console.debug "Fixing data..."
+  debug "Fixing orders/inventory"
+  getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = "Fixing data..."
   orderitems = products = null
   Promise.resolve(orders)
     .then (orders) -> new OrderItem(o) for o in orders
@@ -621,6 +688,7 @@ findOrCreateOrder = (order) ->
 
 # Get the changes from the spreadsheet, and update the database
 getSpreadsheetChanges = ->
+  debug "Getting spreadsheet changes..."
   getAuthToken()
     .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
     .then (params) -> getSpreadsheetData(params...)
@@ -736,7 +804,7 @@ filterProducts = (match) ->
     product.hidden = !productName.match(rex)
 
 setOrderItemAction = (target) ->
-  console.debug "Setting action on ", target
+  debug "Setting action on ", target
   { dataset } = target
   { orderitem, action } = dataset
   form = target
@@ -826,16 +894,17 @@ console.log "Welcome to stockman v#{VERSION}"
 start()
 
 router = (event) ->
-  console.debug "Hash change!", event
   { oldURL, newURL } = event
   url = new URL(newURL)
   { pathname, hash } = url
+  debug "Hash change #{oldURL} → #{newURL}!", event
   switch hash
     when '#dashboard'    then renderDashboard()
     when '#settings'     then renderSettings()
     when '#inventory'    then renderInventory()
     when '#orders'       then renderOrders()
     when '#log'          then renderLog()
+    when '#spreadsheet'  then renderSpreadsheet()
     else console.warn "Unknown page: #{hash}"
 
 addEventListener 'hashchange', router
@@ -848,9 +917,6 @@ addEventListener 'offline', ->
   getUI.then (ui) ->
     ui.replaceClass('body')('online')('offline')
 
-getUI.then (ui) ->
-  ui.listen('#choose-spreadsheet')('change', 'submit') spreadsheetHandler
-
 # TODO: DRY!
 getUI.then (ui) ->
   { hash } = location
@@ -860,17 +926,24 @@ getUI.then (ui) ->
     when '#inventory'    then renderInventory()
     when '#orders'       then renderOrders()
     when '#log'          then renderLog()
+    when '#spreadsheet'  then renderSpreadsheet()
     else console.warn "Unknown page: #{hash}"
 
+changeSpreadsheet = ->
+  if confirm "Are you sure you want to change spreadsheets?"
+    delete localStorage.spreadsheet
+    openDB.then (db) -> db.clear()
+    synchronize()
+
 powerwash = ->
-  { revoke_uri } = GOOGLE
-  getAuthToken().then (token) ->
-    uri = "#{revoke_uri}?token=#{token}"
-    ajax.get(uri)
-      .then -> indexedDB.deleteDatabase('stockman')
-      .then -> sessionStorage.clear()
-      .then -> localStorage.clear()
-      .then -> location.replace('/')
+  if confirm("Are you sure you want to delete ALL your settings and restart?")
+    { revoke_uri } = GOOGLE
+    getAuthToken().then (token) ->
+      uri = "#{revoke_uri}?token=#{token}"
+      indexedDB.deleteDatabase('stockman')
+      delete sessionStorage[k] for own k, v of sessionStorage
+      delete localStorage[k] for own k, v of localStorage
+      setTimeout((-> location.replace(uri)), 2000)
 
 Stockman.powerwash = powerwash
 

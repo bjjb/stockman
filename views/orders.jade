@@ -14,20 +14,20 @@ form.form.filter(name='filter')
       
 .panel-group#order-panels
   | {{#orders}}
-  .order.panel(id="order-{{id}}" class="{{status}}" class="panel-default")
+  .order.panel(id="order-{{order_id}}" class="{{status}}" class="panel-default")
     .panel-heading
       h4.panel-title
-        a(data-toggle="collapse" data-parent="#order-panels" href="#order-collapse-{{id}}")
+        a(data-toggle="collapse" data-parent="#order-panels" href="#order-collapse-{{order_id}}")
           span.customer {{customer}}
           small.status.pull-right {{items.open.length}} {{status}}
-    .panel-collapse.collapse(id="order-collapse-{{id}}")
+    .panel-collapse.collapse(id="order-collapse-{{order_id}}")
       .panel-body
         ul.list-group
           | {{#items}}
           .li.list-group-item.order-item(
               id="order-item-{{id}}"
               class="{{status}}{{#comment}} comment{{/comment}}"
-              data-order="{{order.id}}")
+              data-order="{{order.order_id}}")
             .container-fluid
               .row
                 .col-sm-4

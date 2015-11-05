@@ -74,9 +74,11 @@ watch.css      = -> appcache().then -> exec "stylus -u bootstrap-styl -w -o #{DI
 watch.js       = -> appcache().then -> exec "coffee -w -o #{DIST} -cm #{SRC}/*.coffee"
 serve          = -> require('./server')(staticDirs: ['public'], port: 3000, logLevel: 'dev')
 dev            = -> build().then Promise.race([watch(), serve()])
+quick          = -> js().then(appcache)
 
 # Actual tasks
 task "build",  "compile the site",              build
+task "quick",  "build just the JS",             quick
 task "watch",  "watch for changes and compile", watch
 task "serve",  "serve the site",                serve
 task "dev",    "watch and serve",               dev
