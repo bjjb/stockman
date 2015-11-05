@@ -36,11 +36,11 @@ ajax =
 # Writes stuff to the console and to the logs
 debug = (arg) ->
   if sessionStorage.debug
-    console?.debug(arg)
+    console?.debug(arguments...)
     getUI.then ->
       ul = document.getElementById('logs')
       li = document.createElement('LI')
-      li.innerHTML = "<pre>#{JSON.stringify(args)}</pre>"
+      li.innerHTML = "<pre>#{arg}</pre>"
       ul.insertBefore(li, ul.firstChild)
   arg
 debug.set = (x) -> sessionStorage.debug = x
@@ -274,13 +274,13 @@ inventoryHandler = (event) ->
       if 'total' in classNames
         # Simple version
         openDB
-          .then (db) -> Product.get(
+          .then (db) -> db.products.get(Number(dataset.product))
           .then debug
           .then (product) ->
             result = prompt("How many #{product.product} have you in total?", product.total)
             product.total = Number(result)
             db.products.put(product)
-          .then ->
+          .then -> renderInventory()
           
   if type is 'input'
     if target.name is 'filter'

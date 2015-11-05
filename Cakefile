@@ -62,10 +62,11 @@ appcache = ->
   mustache({ name, version, date }, "#{SRC}/index.appcache", "#{DIST}/index.appcache")
 
 # Task functions
-dist   = -> mkdir(DIST).then(copy('favicon.ico', 'logo.svg'))
+mkdirs = -> mkdir(DIST).then -> Promise.all(mkdir("#{DIST}/#{d}") for d in 'images css js'.split(' ')).then -> DIST
+dist   = -> mkdirs().then(copy('favicon.ico', 'images/logo.svg'))
 html   = -> exec "jade   -o #{DIST} -HP #{SRC}/*.jade"
-css    = -> exec "stylus -u bootstrap-styl -o #{DIST} -m  #{SRC}/*.styl"
-js     = -> exec "coffee -o #{DIST} -cm #{SRC}/*.coffee"
+css    = -> exec "stylus -u bootstrap-styl -o #{DIST} -m  #{SRC}/css/*.styl"
+js     = -> exec "coffee -o #{DIST} -cm #{SRC}/js/*.coffee"
 build  = -> Promise.all [dist(), appcache(), html(), css(), js()]
 watch  = -> Promise.all [build(), watch.html(), watch.css(), watch.js()]
 watch.html     = -> appcache().then -> exec "jade   -w -o #{DIST} -HP #{SRC}/*.jade"
