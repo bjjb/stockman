@@ -27,7 +27,7 @@ form.form.filter(name='filter' action="javascript:void(0)" method="post")
           .li.list-group-item.order-item(
               id="order-item-{{id}}"
               class="{{status}}{{#comment}} comment{{/comment}}"
-              data-order="{{order.order_id}}")
+              data-order="{{order_id}}")
             .container-fluid
               .row
                 .col-sm-4
@@ -43,51 +43,51 @@ form.form.filter(name='filter' action="javascript:void(0)" method="post")
                         span.caret
                         span.sr-only Toggle dropdown
                       ul.dropdown-menu
-                        li: a(data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Sell
-                        li: a(data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
-                        li: a(data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Sell
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
                         li.divider
-                          li: a(data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
                   form.form.form-inline.sold
                     small.price
                       output.price(name="price" value="{{getPrice}}") {{getPrice}}
                     .btn-group
-                      button.action.btn.btn-default(data-orderitem="{{id}}" data-action="Undo" type="button" name="action") Undo
+                      button.action.btn.btn-default(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Undo" type="button" name="action") Undo
                   form.form.form-inline.hold
                     .btn-group
-                      button.btn.btn-success(data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
+                      button.btn.btn-success(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
                       button.btn.dropdown-toggle.btn-success(type="button" name="chooseAction" data-toggle="dropdown")
                         span.caret
                         span.sr-only Toggle dropdown
                       ul.dropdown-menu
-                        li: a(data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
-                        li: a(data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
                         li.divider
-                          li: a(data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
                   form.form.form-inline.short
                     .btn-group
-                      button.action.btn.btn-primary(data-orderitem="{{id}}" data-action="Open" type="button" name="action") Open
+                      button.action.btn.btn-primary(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" type="button" name="action") Open
                       button.btn.dropdown-toggle.btn-primary(type="button" name="chooseAction" data-toggle="dropdown")
                         span.caret
                         span.sr-only Toggle dropdown
                       ul.dropdown-menu
-                        li: a(data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
-                        li: a(data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
+                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
                         li.divider
-                          li: a(data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
-                  form.form.form-inline.selling(name='sell' data-order="{{order.id}}" data-orderitem="{{id}}")
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                  form.form.form-inline.selling(name='sell' data-order="{{order.order_id}}" data-orderitem="{{id}}")
                     .input-group
                       span.input-group-addon $
-                      input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-orderitem="{{id}}")
+                      input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-order="{{order_id}}" data-orderitem="{{id}}")
                       .input-group-btn
-                        button.action.btn.btn-success.action(data-orderitem="{{id}}" data-action="Checkout" type='submit' name="sell" disabled) Sell
+                        button.action.btn.btn-success.action(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Checkout" type='submit' name="sell" disabled) Sell
                         button.btn.btn-success.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
                           span.caret
                           span.sr-only Choose action
                         ul.dropdown-menu.dropdown-menu-right
-                          li: a(data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Cancel
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Cancel
                           li.divider
-                          li: a(data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
 
           | {{/items}}
 

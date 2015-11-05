@@ -256,6 +256,7 @@ ordersHandler = (event) ->
       setOrderItemAction(target)
     if nodeName is 'BUTTON' and target.type is 'button' and dataset.action?
       { orderitem } = dataset
+      debug "Order button clicked: #{dataset.action} on #{orderitem}"
       switch dataset.action
         when 'Sell' then sellOrderItem(target)
         when 'Open' then openOrderItem(target)
@@ -276,10 +277,9 @@ ordersHandler = (event) ->
     switch target.name
       when 'filter' 
         filterOrders(target.filter.value)
-        false
+        target.filter.blur()
       when 'sell'
         soldOrderItem(target)
-        false
       else throw "Unhandled #orders submit: #{target.name}"
     
 inventoryHandler = (event) ->
@@ -287,7 +287,6 @@ inventoryHandler = (event) ->
   { name, id, classList, dataset, nodeName } = target
   classNames = (className for className in classList)
   if type is 'click'
-    debug target
     if nodeName is 'SPAN' and id is 'clear-filter'
       form = ui.$('#inventory form[name="filter"]')
       form.reset()
@@ -306,6 +305,7 @@ inventoryHandler = (event) ->
   if type is 'input'
     if target.name is 'filter'
       filterProducts(target.value)
+      target.filter.blur()
   if type is 'submit'
     switch target.name
       when 'filter' 
@@ -344,10 +344,7 @@ settingsHandler = (event) ->
     debug "SETTINGS CLICK"
     event.preventDefault()
     if name is 'upgrade'
-      applicationCache.addEventListener 'updateready', ->
-        applicationCache.swapCache()
-      applicationCache.update()
-      location.reload()
+      applicationCache.swapCache()
     else if name is 'powerwash'
       event.preventDefault()
       powerwash()
@@ -868,25 +865,29 @@ deleteOrderItem = (target) ->
       changes.push(['delete', 'order', orderitem])
 
 updateOrderItemPrice = (target) ->
-  { dataset: { orderitem }, form, value } = target
-  { order } = form.dataset
+  { dataset, form, value } = target
+  { orderitem, order } = dataset
   form.sell.disabled = !value
   output = ui.$("#order-item-#{orderitem} form.sold").price
   value = Number(value or 0).toFixed(2)
   output.setAttribute('value', value)
   output.innerHTML = "$ #{value}"
   changes.push(['change', 'order', 'price', value])
-  updateOrderPrice(order)
+  updateOrderPrice(dataset)
 
-updateOrderPrice = (order) ->
+updateOrderPrice = ({ order, orderitem }) ->
+  q = "input[name='price'][data-order='#{order}'][data-order-item='#{orderitem}']"
   prices = (Number(e.value or 0) for e in ui.$$("#order-#{order} input[name='price']"))
+  console.debug ui.$$("#order-#{order} input[name='price']")
   total = 0
   total += Number(price or 0) for price in prices
+  console.debug "TOTAL", total
   output = ui.$("#order-#{order} output[name='total']")
   output.setAttribute('value', total)
   output.innerHTML = "$ #{total.toFixed(2)}"
 
 soldOrderItem = (form) ->
+  debug "Sold order item: ", form
   { order, orderitem } = form.dataset
   ui.replaceClass("#order-item-#{orderitem}")('selling', 'HOLD', 'SHORT', 'OPEN')('SOLD')
 
