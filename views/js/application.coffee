@@ -1,3 +1,5 @@
+@Stockman ?= Stockman = {}
+
 VERSION = 1
 DEBUG = 1
 ERRORS = []
@@ -14,6 +16,7 @@ GOOGLE =
     'https://www.googleapis.com/auth/spreadsheets'
     'https://www.googleapis.com/auth/drive'
   ]
+
 SYNC_INTERVAL = 1000 * 60 * 60 # 1 hour
 
 # Little AJAX library
@@ -31,15 +34,17 @@ ajax =
       xhr.send(data)
 
 # Writes stuff to the console and to the logs
-debug = (args...) ->
+debug = (arg) ->
   if sessionStorage.debug
-    console?.debug(args...)
+    console?.debug(arg)
     getUI.then ->
       ul = document.getElementById('logs')
       li = document.createElement('LI')
       li.innerHTML = "<pre>#{JSON.stringify(args)}</pre>"
       ul.insertBefore(li, ul.firstChild)
-  args
+  arg
+debug.set = (x) -> sessionStorage.debug = x
+Stockman.debug = debug
 
 rejolve = (x) -> Promise[x? and 'resolve' or 'reject'](x)
 urlencode = (o) -> ([k, v].map(encodeURIComponent).join('=') for own k, v of o).join('&')
@@ -51,8 +56,8 @@ getProperty = (o) -> (k) -> if o[k]? then Promise.resolve(o[k]) else Promise.rej
 random = (a) -> a[Math.floor(Math.random() * a.length)]
 utils = { rejolve, urlencode, ajax, taskChain, arrayify, getProperty, putProperty, random }
 
-errors = []
-logs = []
+Stockman.errors = errors = []
+Stockman.logs   = logs   = []
 
 # Very, very simple change tracker.
 changes =
@@ -62,9 +67,9 @@ changes =
   since: (date) -> openDB.then (db) -> db.changes.getAll([date, null])
   before: (date) -> openDB.then (db) -> db.changes.getAll([null, date])
 
-p = console.debug.bind(console)
-
-Stockman = { errors, logs, changes, p, Order, OrderItem, Product }
+Stockman.changes = changes
+Stockman.p = p = console.debug.bind(console)
+@p ?= p # VERY handy for seeing promises on the console.
 
 OrderItem = ({
   id, order_id, customer, product, qty, weight, price, status, comment,
@@ -135,7 +140,8 @@ OrderItem::getTotal = ->
   total += Number(item.getPrice()) for item in @items
   total.toFixed(2)
 
-Product = ({ product, type, total, available, price, units, comment, updated }) ->
+Product = ({ id, product, type, total, available, price, units, comment, updated }) ->
+  @id = Number(id) if id
   @product = product or throw "No name given!"
   @type = type if type
   @total = Number(total or 0)
@@ -148,8 +154,12 @@ Product = ({ product, type, total, available, price, units, comment, updated }) 
 
 Product::save = ->
   openDB.then (db) =>
-    db.products.put(@)
-    @
+    if @id
+      db.products.put(@).then => @
+    else
+      db.products.add(@).then (id) =>
+        @id = id
+        @
 
 Product.create = (product) ->
   new Product(product).save()
@@ -262,12 +272,16 @@ inventoryHandler = (event) ->
       return
     if nodeName is 'TD'
       if 'total' in classNames
-        tr = target.parentElement
-        product = tr.querySelector('td.product').innerHTML
-        available = target.innerHTML
-        ui.$('#inventory .modal .product').innerHTML = product
-        ui.$('#inventory .modal input').value = available
-        $('#inventory .modal').modal('show')
+        # Simple version
+        openDB
+          .then (db) -> Product.get(
+          .then debug
+          .then (product) ->
+            result = prompt("How many #{product.product} have you in total?", product.total)
+            product.total = Number(result)
+            db.products.put(product)
+          .then ->
+          
   if type is 'input'
     if target.name is 'filter'
       filterProducts(target.value)
@@ -344,6 +358,7 @@ importSpreadsheet = ({ orders, inventory }) ->
 # Starts the whole thing
 start = ->
   synchronize() # pull in database changes
+  getUI.then (ui) -> ui.goto('#dashboard')
 
 showError = (message) ->
   console.error(if message instanceof Error then message else Error(message))
@@ -371,7 +386,8 @@ renderInventory = ->
   console.debug "Rendering inventory..."
   getUI
     .then getInventoryForUI
-    .then ui.render('#inventory tbody.products')
+    .then ui.render('#inventory')
+    .then ui.listen('#inventory')('click', 'input', 'submit')(inventoryHandler)
 
 # Render the settings section
 renderSettings = ->
@@ -397,8 +413,14 @@ renderDashboard = ->
 # Gets the inventory from the database
 getInventoryForUI = ->
   openDB.then (db) ->
-    db.products.type.getAll().then (products) ->
-      new Product(p, i) for p, i in products
+    db.products.type.getAll()
+      .then (products) -> new Product(p) for p in products
+      .then (products) -> {products}
+
+# Gets values for the settings page
+getSettingsForUI = ->
+  getUserSpreadsheets().then (spreadsheets) ->
+    { spreadsheets }
 
 # Gets the orders from the database, and makes Orders objects
 getOrdersForUI = ->
@@ -449,18 +471,13 @@ merge = (first) ->
 getChanges = ->
   changes.all()
 
-# Converts a list of changes into arguments that can be passed along to the
-# Apps Script.
-formatDatabaseChanges = (changes) ->
-  changeToScriptParams(change) for change in changes
-
 # Updates the spreadsheet with the values supplied
 # Changes should be arrays containing [SET,<id>,<property>,<value>,...]
 # To delete, send ['DELETE',<id>]
 # To add, send ['ADD',<id>,<property>,<value>,...]
 updateSpreadsheet = (changes) ->
   getSpreadsheetID().then (ssid) ->
-    executeAppsScriptFunction("ApplyChanges", ssid, changes)
+    executeAppsScriptFunction("ApplyChanges")(ssid, changes)
       .then -> changes.clear()
       .then -> localStorage.lastSynced = new Date()
 
@@ -478,6 +495,11 @@ getSpreadsheetID = ->
     getUI.then (ui) ->
       ui.goto('#settings')
       reject()
+
+# Lets you forget the ID of the spreadsheet.
+getSpreadsheetID.refresh = ->
+  delete localStorage.spreadsheet
+  getSpreadsheetID()
 
 chooseSpreadsheet = ->
   getUI.then (ui) ->
@@ -497,10 +519,16 @@ cache = (storage) ->
         storage.setItem(key, JSON.stringify(result)) if DEBUG?
         result
 
-# Gets a list of spreadsheets in the user's Google Drive
+# Gets a list of spreadsheets in the user's Google Drive. Returns an array of
+# objects with id and name.
 getUserSpreadsheets = ->
   cache(sessionStorage)('spreadsheets') ->
     executeAppsScriptFunction('SpreadsheetFiles')()
+
+# Lets you forget the user spreadsheets, and get a fresh list
+getUserSpreadsheets.refresh = ->
+  delete sessionStorage.spreadsheets
+  getUserSpreadsheets()
 
 # Downloads and converts data from the spreadsheet.
 # It can optionally only get data whose Updated is later than 'since'.
@@ -509,15 +537,26 @@ getSpreadsheetData = (id, since) ->
   executeAppsScriptFunction('GetChanges')(id, since)
 
 # Assigns IDs to order items which don't have them. They get saved as part of
-# the process. Returns a function that expects orderitems, and will resolve tp
+# the process. Returns a function that expects orderitems, and will resolve to
 # them after they're all fixed.
-fixMissingIDs = (orderitems) ->
+fixMissingOrderItemIDs = (orderitems) ->
   fix = (o, i) ->
     o.save().then ({ id, updated }) -> [i, 'id', id, 'updated', updated ]
   Promise.all(fix(o, i) for o, i in orderitems when !o.id).then (fixes) ->
     getSpreadsheetID()
       .then (ssid) -> executeAppsScriptFunction("SetRowProperties")(ssid, { 'ORDERS': fixes })
       .then -> orderitems
+
+# Assigns IDs to products in the inventory that don't have them. They get
+# saved as part of the process. Returns a function that expects products, and
+# will resolve to them after they're all fixed,
+fixMissingProductIDs = (products) ->
+  fix = (p, i) ->
+    p.save().then ({ id, updated }) -> [i, 'id', id, 'updated', updated ]
+  Promise.all(fix(p, i) for p, i in products when !p.id).then (fixes) ->
+    getSpreadsheetID()
+      .then (ssid) -> executeAppsScriptFunction("SetRowProperties")(ssid, { 'INVENTORY': fixes })
+      .then -> products
 
 # Makes missing orders for order items, and assigns the order_id to the order
 # item, after updating the spreadsheet.
@@ -551,15 +590,12 @@ fixData = ({ orders, inventory }) ->
   Promise.resolve(orders)
     .then (orders) -> new OrderItem(o) for o in orders
     .then fixMissingOrderIDs
-    .then fixMissingIDs
+    .then fixMissingOrderItemIDs
     .then (results) -> orderitems = results
     .then -> new Product(p) for p in inventory
+    .then fixMissingProductIDs
     .then (results) -> products = results
     .then -> { orderitems, products }
-
-# Sends the changes to the spreadsheet
-updateSpreadsheetData = ({ orders, inventory }) ->
-  Promise.resolve "Sending the changes to the spreadsheet"
 
 # Finds or creates an order.
 findOrCreateOrder = (order) ->
@@ -601,7 +637,8 @@ openDB = new Promise (resolve, reject) ->
       os.createIndex 'delivery_location', 'delivery_location', unique: false
       os.createIndex 'date_sold', 'date_sold', unique: false
       os.createIndex 'updated', 'updated', unique: false
-      os = result.createObjectStore 'products', keyPath: 'product'
+      os = result.createObjectStore 'products', keyPath: 'id', autoIncrement: true
+      os.createIndex 'product', 'product', unique: true
       os.createIndex 'type', 'type', unique: false
       os.createIndex 'total', 'total', unique: false
       os.createIndex 'available', 'available', unique: false
@@ -774,6 +811,7 @@ console.log "Welcome to stockman v#{VERSION}"
 start()
 
 router = (event) ->
+  console.log "Hash change!"
   { oldURL, newURL } = event
   url = new URL(newURL)
   { pathname, hash } = url
@@ -796,5 +834,13 @@ addEventListener 'offline', ->
 getUI.then (ui) ->
   ui.listen('#choose-spreadsheet')('change', 'submit') spreadsheetHandler
 
-@Stockman = Stockman
-@p = console.debug.bind(console)
+getUI.then (ui) ->
+  { hash } = location
+  switch hash
+    when '#dashboard' then renderDashboard()
+    when '#settings'  then renderSettings()
+    when '#orders'    then renderOrders()
+    when '#inventory' then renderInventory()
+
+Spreadsheet = { getUserSpreadsheets, getSpreadsheetID, getSpreadsheetData }
+merge(Stockman)({ Order, OrderItem, Product, Spreadsheet })

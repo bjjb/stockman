@@ -19,5 +19,11 @@ table.table.products(data-collection="products")
       th.product Name
       th.total.number Total
       th.available.number Available
-  tbody.products(data-template='script.product')
-  script.product(type='text/html'): include ./templates/inventory
+  tbody.products
+    | {{#products}}
+    tr.product(class="{{status}}" data-id="{{id}}")
+      td.value.type {{type}}
+      td.value.product {{product}}
+      td.value.number.total(data-value="{{total}}" data-product="{{id}}") {{total}}
+      td.value.number.available {{available}}
+    | {{/products}}

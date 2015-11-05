@@ -10,10 +10,12 @@ section#choose-spreadsheet
       label(for="spreadsheet-select")
         | Orders & Inventory spreadsheet
       select#spreadsheet-select.form-control(name="spreadsheet" data-template="#choose-spreadsheet script.options")
+        option Select a spreadsheet
+        | {{#spreadsheets}}
+        option(value="{{id}}") {{{name}}}
+        | {{/spreadsheets}}
       .help-block.initial.
         Your order and inventory will be kept in this sheet, and the app will
         read and write from/to there. You will have to grant permission!
     .form-group.text-center
       button.btn.btn-primary(type="submit" name="submit") Use this spreadsheet
-  script.options(type='text/html')
-    include templates/spreadsheets
