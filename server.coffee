@@ -64,9 +64,10 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
   app.use(middleware...) for middleware in middlewares
 
   app.get '/', (req, res) -> res.render 'index'
-  app.get '/orders', (req, res) -> res.render 'orders'
-  app.get '/inventory', (req, res) -> res.render 'inventory'
-  app.get '/settings', (req, res) -> res.render 'settings'
+  app.get '/orders.html', (req, res) -> res.render 'orders'
+  app.get '/inventory.html', (req, res) -> res.render 'inventory'
+  app.get '/settings.html', (req, res) -> res.render 'settings'
+  app.get '/dashboard.html', (req, res) -> res.render 'dashboard'
   app.get '/images/logo.svg', (req, res) ->
     readFile 'views/images/logo.svg', (err, data) ->
       res.set('content-type', 'image/svg+xml').end(data)

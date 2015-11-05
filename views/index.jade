@@ -56,14 +56,7 @@ block messages
         | Upgrade
 
 block main
-  section.page#dashboard
-    include ./dashboard
-
-  section.page#settings
-    include ./settings
-
-  section.page#orders
-    include ./orders
-
-  section.page#inventory
-    include ./inventory
+  section.page#dashboard(data-template="/dashboard.html")
+  section.page#settings(data-template="/settings.html")
+  section.page#orders(data-template="/orders.html")
+  section.page#inventory(data-template="/inventory.html")

@@ -4,6 +4,10 @@ CACHE MANIFEST
 
 CACHE:
 /
+/dashboard.html
+/inventory.html
+/orders.html
+/settings.html
 /favicon.ico
 /images/logo.svg
 /css/application.css

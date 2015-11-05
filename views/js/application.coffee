@@ -53,7 +53,15 @@ utils = { rejolve, urlencode, ajax, taskChain, arrayify, getProperty, putPropert
 
 errors = []
 logs = []
-changes = []
+
+# Very, very simple change tracker.
+changes =
+  all: (o) -> openDB.then (db) -> db.changes.getAll()
+  push: (o) -> openDB.then (db) -> db.changes.add(o, new Date())
+  clear: -> openDB.then (db) -> db.changes.clear()
+  since: (date) -> openDB.then (db) -> db.changes.getAll([date, null])
+  before: (date) -> openDB.then (db) -> db.changes.getAll([null, date])
+
 p = console.debug.bind(console)
 
 Stockman = { errors, logs, changes, p, Order, OrderItem, Product }
@@ -127,10 +135,25 @@ OrderItem::getTotal = ->
   total += Number(item.getPrice()) for item in @items
   total.toFixed(2)
 
-Product = (data, @id) ->
-  @[k] = v for own k, v of data when v isnt ''
-  @[k] = new Date(@[k]) for k in ['updated'] when @[k]
+Product = ({ product, type, total, available, price, units, comment, updated }) ->
+  @product = product or throw "No name given!"
+  @type = type if type
+  @total = Number(total or 0)
+  @available = Number(available or 0)
+  @price = Number(price)
+  @units = units if units
+  @comment = comment if comment
+  @updated = new Date(updated) if updated
   @
+
+Product::save = ->
+  openDB.then (db) =>
+    db.products.put(@)
+    @
+
+Product.create = (product) ->
+  new Product(product).save()
+
 Product::status = ->
   if @available is 0 then return 'warning'
   if @available < 0 then return 'danger'
@@ -281,8 +304,6 @@ applicationCacheHandler = (event) ->
 spreadsheetHandler = (event) ->
   { type, target } = event
   switch type
-    when 'hashchange'
-      chooseSpreadsheet()
     when 'change'
       { value } = target
       ui.replaceClass('#choose-spreadsheet')('error', 'updateready')('checking')
@@ -307,7 +328,7 @@ spreadsheetHandler = (event) ->
       delete sessionStorage.spreadsheet # delete the cached version
       ui.addClass('body')('synchronizing')
       importSpreadsheet(spreadsheet)
-      ui.goto '#orders'
+      ui.goto '#dashboard'
 
 checkSpreadsheet = (id) ->
   getSpreadsheetData(id).then ({ inventory, orders }) ->
@@ -316,16 +337,16 @@ checkSpreadsheet = (id) ->
     { inventory, orders }
 
 importSpreadsheet = ({ orders, inventory }) ->
-  openDB
-    .then fixData({ orders, inventory })
-    .then saveData({ orders, inventory })
+  Promise.resolve({ orders, inventory })
+    .then fixData
+    .then saveData
     
 # Starts the whole thing
 start = ->
-    synchronize() # pull in database changes
+  synchronize() # pull in database changes
 
 showError = (message) ->
-  console.error(message)
+  console.error(if message instanceof Error then message else Error(message))
   getUI.then (ui) ->
     ui.addClass('body')('error')
     ui.$('.alert.error .message').innerHTML = message.toString()
@@ -333,10 +354,8 @@ showError = (message) ->
 # Synchronize the local database with the spreadsheet
 synchronize = ->
   showSynchronizing = -> getUI.then (ui) -> ui.addClass('body')('synchronizing')
-  hideSynchronizing = -> getUI.then (ui) -> ui.addClass('body')('synchronizing')
-  failSynchronizing = (reason) ->
-    getUI.then (ui) ->
-      showError(reason)
+  hideSynchronizing = -> getUI.then (ui) -> ui.removeClass('body')('synchronizing')
+  failSynchronizing = (reason) -> hideSynchronizing().then -> showError(reason)
 
   Promise.resolve()
     .then showSynchronizing
@@ -346,25 +365,34 @@ synchronize = ->
     .then updateSpreadsheet
     .then hideSynchronizing
     .catch failSynchronizing
-    .then -> ui.goto('#dashboard')
 
 # Render the inventory section
 renderInventory = ->
+  console.debug "Rendering inventory..."
   getUI
     .then getInventoryForUI
-    .then (products) -> ui.render('#inventory tbody.products')({products})
+    .then ui.render('#inventory tbody.products')
+
+# Render the settings section
+renderSettings = ->
+  console.debug "Rendering settings..."
+  getUI
+    .then getSettingsForUI
+    .then ui.render('#settings')
 
 # Render the orders section
 renderOrders = ->
+  console.debug "Rendering orders..."
   getUI
     .then getOrdersForUI
-    .then (orders) -> ui.render('#orders div.orders')({orders})
+    .then ui.render('#orders')
 
 # Render the dashboard
 renderDashboard = ->
+  console.debug "Rendering dashboard..."
   getUI
     .then getDashboardForUI
-    .then ui.render('#dashboard .statuses')
+    .then ui.render('#dashboard')
 
 # Gets the inventory from the database
 getInventoryForUI = ->
@@ -393,11 +421,11 @@ getDashboardForUI = ->
   dashboard = { orders: {}, inventory: {} }
   openDB.then (db) ->
     Promise.all([
-      db.orders.status.count('OPEN').then (n) -> dashboard.orders.open = n
-      db.orders.status.count('HOLD').then (n) -> dashboard.orders.hold = n
-      db.orders.status.count('SHORT').then (n) -> dashboard.orders.short = n
-      db.inventory.available.getAll([null, -1]).then (p) -> dashboard.inventory.short = p
-      db.inventory.available.getAll(0).then (p) -> dashboard.inventory.out = p
+      db.orderitems.status.count('OPEN').then (n) -> dashboard.orders.open = n
+      db.orderitems.status.count('HOLD').then (n) -> dashboard.orders.hold = n
+      db.orderitems.status.count('SHORT').then (n) -> dashboard.orders.short = n
+      db.products.available.getAll([null, -1]).then (p) -> dashboard.inventory.short = p
+      db.products.available.getAll(0).then (p) -> dashboard.inventory.out = p
     ]).then ->
       { orders, inventory } = dashboard
       { short, out } = dashboard.inventory
@@ -407,6 +435,7 @@ getDashboardForUI = ->
       inventory.message = "You're out of #{sp.product}" if op = out.shift()
       inventory.message += " and #{out.length} other products" if out.length
       inventory.message ?= "The inventory looks good!"
+      console.debug dashboard
       dashboard
       
 # Gets a function to merge the second argument into the first
@@ -415,8 +444,10 @@ merge = (first) ->
     first[k] = v for own k, v of second
     first
 
+# Gets a list of changes since the last time the app was synced (or all of
+# them, if it was never synced).
 getChanges = ->
-  debug "Getting changes..."
+  changes.all()
 
 # Converts a list of changes into arguments that can be passed along to the
 # Apps Script.
@@ -424,17 +455,18 @@ formatDatabaseChanges = (changes) ->
   changeToScriptParams(change) for change in changes
 
 # Updates the spreadsheet with the values supplied
-# Expects an object like:
-#    { sheet: changes }
-# where sheet is the Sheet name and changes is an array of Change objects.
-# where the key is the spreadsheet name, the first sub-array is a list of
+# Changes should be arrays containing [SET,<id>,<property>,<value>,...]
+# To delete, send ['DELETE',<id>]
+# To add, send ['ADD',<id>,<property>,<value>,...]
 updateSpreadsheet = (changes) ->
-  debug "Syncing changes to DB", changes
+  getSpreadsheetID().then (ssid) ->
+    executeAppsScriptFunction("ApplyChanges", ssid, changes)
+      .then -> changes.clear()
+      .then -> localStorage.lastSynced = new Date()
 
 # Gets the time the app and the spreadsheet were last synced.
 getLastSyncedTime = ->
   { lastSynced } = localStorage
-  #indexedDB.deleteDatabase('stockman') unless lastSynced
   new Date(lastSynced) if lastSynced?
 
 # Gets the ID of the spreadsheet - tries to get it from localStorage, shows
@@ -443,16 +475,18 @@ getSpreadsheetID = ->
   new Promise (resolve, reject) ->
     { spreadsheet } = localStorage
     return resolve(spreadsheet) if spreadsheet
-    ui.goto('#settings')
-    reject()
+    getUI.then (ui) ->
+      ui.goto('#settings')
+      reject()
 
 chooseSpreadsheet = ->
-  ui.addClass('#choose-spreadsheet')('downloading')
-  ui.disable('#spreadsheet-select')
-  getUserSpreadsheets().then (spreadsheets) ->
-    ui.render('#spreadsheet-select')({ spreadsheets })
-    ui.enable('#spreadsheet-select')
-    ui.replaceClass('#choose-spreadsheet')('downloading')('updateready')
+  getUI.then (ui) ->
+    ui.addClass('#choose-spreadsheet')('downloading')
+    ui.disable('#spreadsheet-select')
+    getUserSpreadsheets().then (spreadsheets) ->
+      ui.render('#spreadsheet-select')({ spreadsheets })
+      ui.enable('#spreadsheet-select')
+      ui.replaceClass('#choose-spreadsheet')('downloading')('updateready')
   
 # Caches the result of f as key in storage.
 cache = (storage) ->
@@ -504,15 +538,24 @@ fixMissingOrderIDs = (orderitems) ->
         .then (ssid) -> executeAppsScriptFunction("SetRowProperties")(ssid, { 'ORDERS': fixes })
         .then -> orderitems
 
+saveData = ({ orderitems, products }) ->
+  Promise.resolve({ orderitems, products })
+    .then Promise.all(order.save() for order in orderitems)
+    .then Promise.all(product.save() for product in products)
+    .then -> console.debug "Saved #{orderitems.length} orders and #{products.length} products."
+
 # Assigns missing OrderIDs and IDs
 fixData = ({ orders, inventory }) ->
+  console.debug "Fixing data..."
+  orderitems = products = null
   Promise.resolve(orders)
     .then (orders) -> new OrderItem(o) for o in orders
     .then fixMissingOrderIDs
     .then fixMissingIDs
-    throw "Finish set IDs"
-    throw "Split order-items without prices"
-    throw "Create orders!"
+    .then (results) -> orderitems = results
+    .then -> new Product(p) for p in inventory
+    .then (results) -> products = results
+    .then -> { orderitems, products }
 
 # Sends the changes to the spreadsheet
 updateSpreadsheetData = ({ orders, inventory }) ->
@@ -558,14 +601,15 @@ openDB = new Promise (resolve, reject) ->
       os.createIndex 'delivery_location', 'delivery_location', unique: false
       os.createIndex 'date_sold', 'date_sold', unique: false
       os.createIndex 'updated', 'updated', unique: false
-      os = result.createObjectStore 'products', keyPath: 'id', autoIncrement: true
-      os.createIndex 'product', 'product', unique: true
+      os = result.createObjectStore 'products', keyPath: 'product'
       os.createIndex 'type', 'type', unique: false
       os.createIndex 'total', 'total', unique: false
+      os.createIndex 'available', 'available', unique: false
       os.createIndex 'price', "price", unique: false
       os.createIndex 'units', "units", unique: false
       os.createIndex 'comment', "comment", unique: false
       os.createIndex 'updated', "updated", unique: false
+      os = result.createObjectStore 'changes'
   ]
   migrate = ({ oldVersion, newVersion }) ->
     console.log "Migrating from #{oldVersion} → #{newVersion}"
@@ -729,6 +773,18 @@ for event in 'checking noupdate downloading progress cached updateready obsolete
 console.log "Welcome to stockman v#{VERSION}"
 start()
 
+router = (event) ->
+  { oldURL, newURL } = event
+  url = new URL(newURL)
+  { pathname, hash } = url
+  switch hash
+    when '#dashboard' then renderDashboard()
+    when '#settings'  then renderSettings()
+    when '#orders'    then renderOrders()
+    when '#inventory' then renderInventory()
+
+addEventListener 'hashchange', router
+
 addEventListener 'online', ->
   getUI.then (ui) ->
     ui.replaceClass('body')('offline')('online')
@@ -737,7 +793,6 @@ addEventListener 'offline', ->
   getUI.then (ui) ->
     ui.replaceClass('body')('online')('offline')
 
-addEventListener 'hashchange', spreadsheetHandler
 getUI.then (ui) ->
   ui.listen('#choose-spreadsheet')('change', 'submit') spreadsheetHandler
 
