@@ -12,6 +12,8 @@ GOOGLE =
   client_secret: "0og9Da5QRapxyv8MvYCAOSkD"
   auth_uri: "https://accounts.google.com/o/oauth2/auth"
   token_uri: "https://www.googleapis.com/oauth2/v3/token"
+  revoke_uri: "https://accounts.google.com/o/oauth2/revoke"
+
   scopes: [
     'https://www.googleapis.com/auth/spreadsheets'
     'https://www.googleapis.com/auth/drive'
@@ -21,6 +23,15 @@ SYNC_INTERVAL = 1000 * 60 * 60 # 1 hour
 
 # Little AJAX library
 ajax =
+  get: (url) ->
+    new Promise (resolve, reject) ->
+      xhr = new XMLHttpRequest
+      xhr.open 'get', url
+      xhr.addEventListener 'load', ->
+        return resolve(@responseText) if @status is 200
+        reject @ 
+      xhr.addEventListener 'error', -> reject(@)
+      xhr.send()
   handle: (handlers = {}) -> (e) -> handlers[@status]?(e)
   request: ({ method, url, headers, data, handlers }) ->
     headers ?= {}
@@ -36,12 +47,7 @@ ajax =
 # Writes stuff to the console and to the logs
 debug = (arg) ->
   if sessionStorage.debug
-    console?.debug(arguments...)
-    getUI.then ->
-      ul = document.getElementById('logs')
-      li = document.createElement('LI')
-      li.innerHTML = "<pre>#{arg}</pre>"
-      ul.insertBefore(li, ul.firstChild)
+    log.push(arg)
   arg
 debug.set = (x) -> sessionStorage.debug = x
 Stockman.debug = debug
@@ -57,7 +63,7 @@ random = (a) -> a[Math.floor(Math.random() * a.length)]
 utils = { rejolve, urlencode, ajax, taskChain, arrayify, getProperty, putProperty, random }
 
 Stockman.errors = errors = []
-Stockman.logs   = logs   = []
+Stockman.log    = log    = []
 
 # Very, very simple change tracker.
 changes =
@@ -193,6 +199,12 @@ Order.create = ({
     comment, updated
   }).save()
 
+Order.all = (status) ->
+  openDB
+    .then (db) -> if status then db.orders.status.getAll(status) else db.orders.getAll()
+    .then (objects) -> new Order(obj) for obj in objects
+    .then (orders) -> Promise.all(order.load() for order in orders)
+
 Order::save = ->
   @updated = new Date()
   openDB.then (db) =>
@@ -202,6 +214,12 @@ Order::save = ->
       db.orders.add(@).then (id) =>
         @order_id = id
         @
+
+Order::load = ->
+  openDB
+    .then (db) => db.orderitems.order_id.getAll(@order_id)
+    .then (oi) => @items = new OrderItem(i) for i in oi
+    .then => @
 
 Order::status = ->
   return 'CLOSED' if @orderItems?.every (i) -> i.status in ['SOLD']
@@ -214,7 +232,7 @@ Order::bsClass = ->
   switch @status()
     when 'OPEN' then 'panel-info'
     when 'CLOSED' then 'panel-default'
-Order::items = -> @orderItems
+Order::items = []
 Order::items.open = -> i for i in @items when i.status is 'OPEN'
 Order::items.sold = -> i for i in @items when i.status is 'SOLD'
 Order::items.hold = -> i for i in @items when i.status is 'HOLD'
@@ -380,6 +398,7 @@ synchronize = ->
     .then getChanges
     .then updateSpreadsheet
     .then hideSynchronizing
+    .then -> console.debug(changes)
     #.catch failSynchronizing
 
 # Render the inventory section
@@ -398,10 +417,10 @@ renderSettings = ->
     .then ui.render('#settings')
 
 # Render the orders section
-renderOrders = ->
+renderOrders = (status) ->
   console.debug "Rendering orders..."
   getUI
-    .then getOrdersForUI
+    .then -> getOrdersForUI(status)
     .then ui.render('#orders')
 
 # Render the dashboard
@@ -410,6 +429,12 @@ renderDashboard = ->
   getUI
     .then getDashboardForUI
     .then ui.render('#dashboard')
+
+# Render the log
+renderLog = ->
+  console.debug "Rendering log..."
+  getUI
+    .then ui.render('#log')({log})
 
 # Gets the inventory from the database
 getInventoryForUI = ->
@@ -424,19 +449,10 @@ getSettingsForUI = ->
     { spreadsheets }
 
 # Gets the orders from the database, and makes Orders objects
-getOrdersForUI = ->
-  openDB.then (db) ->
-    db.orders.getAll().then (orderItems) ->
-      orderItems = (new OrderItem(o) for o in orderItems)
-      orders = {}
-      for orderItem, id in orderItems
-        order_id = orderItem.getOrderID()
-        { customer } = orderItem
-        order = orders[order_id] ?= new Order({ customer, id })
-        orderItem.order = order
-        orderItem.order_id = id
-        order.orderItems.push(orderItem)
-      (v for own k, v of orders when v.status() isnt 'CLOSED')
+getOrdersForUI = (status) ->
+  Order.all(status).then (orders) ->
+    console.debug "Orders for UI", orders, status
+    { status, orders }
 
 # Gets the numbers of openOrders, heldOrders, shortOrders, and a random
 # message about the state of the inventory.
@@ -479,7 +495,6 @@ getChanges = ->
 updateSpreadsheet = (changes) ->
   getSpreadsheetID().then (ssid) ->
     executeAppsScriptFunction("ApplyChanges")(ssid, changes)
-      .then -> changes.clear()
       .then -> localStorage.lastSynced = new Date()
 
 # Gets the time the app and the spreadsheet were last synced.
@@ -703,7 +718,6 @@ executeAppsScriptFunction = (functionName) ->
         method = 'post'
         headers = { Authorization: "Bearer #{token}" }
         data = JSON.stringify(data)
-        console.debug data
         ajax.request({ method, url, headers, data, handlers })
       getAuthToken().then(post)
 
@@ -812,15 +826,17 @@ console.log "Welcome to stockman v#{VERSION}"
 start()
 
 router = (event) ->
-  console.log "Hash change!"
+  console.debug "Hash change!", event
   { oldURL, newURL } = event
   url = new URL(newURL)
   { pathname, hash } = url
   switch hash
-    when '#dashboard' then renderDashboard()
-    when '#settings'  then renderSettings()
-    when '#orders'    then renderOrders()
-    when '#inventory' then renderInventory()
+    when '#dashboard'    then renderDashboard()
+    when '#settings'     then renderSettings()
+    when '#inventory'    then renderInventory()
+    when '#orders'       then renderOrders()
+    when '#log'          then renderLog()
+    else console.warn "Unknown page: #{hash}"
 
 addEventListener 'hashchange', router
 
@@ -835,13 +851,28 @@ addEventListener 'offline', ->
 getUI.then (ui) ->
   ui.listen('#choose-spreadsheet')('change', 'submit') spreadsheetHandler
 
+# TODO: DRY!
 getUI.then (ui) ->
   { hash } = location
   switch hash
-    when '#dashboard' then renderDashboard()
-    when '#settings'  then renderSettings()
-    when '#orders'    then renderOrders()
-    when '#inventory' then renderInventory()
+    when '#dashboard'    then renderDashboard()
+    when '#settings'     then renderSettings()
+    when '#inventory'    then renderInventory()
+    when '#orders'       then renderOrders()
+    when '#log'          then renderLog()
+    else console.warn "Unknown page: #{hash}"
+
+powerwash = ->
+  { revoke_uri } = GOOGLE
+  getAuthToken().then (token) ->
+    uri = "#{revoke_uri}?token=#{token}"
+    ajax.get(uri)
+      .then -> indexedDB.deleteDatabase('stockman')
+      .then -> sessionStorage.clear()
+      .then -> localStorage.clear()
+      .then -> location.replace('/')
+
+Stockman.powerwash = powerwash
 
 Spreadsheet = { getUserSpreadsheets, getSpreadsheetID, getSpreadsheetData }
 merge(Stockman)({ Order, OrderItem, Product, Spreadsheet })

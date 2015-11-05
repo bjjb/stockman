@@ -19,10 +19,10 @@ block nav
               | Orders
               span.caret
             ul.dropdown-menu
-              li: a(data-toggle="collapse" data-target="#navbar" href="#orders!open") Open
-              li: a(data-toggle="collapse" data-target="#navbar" href="#orders!hold") Held
-              li: a(data-toggle="collapse" data-target="#navbar" href="#orders!short!") Short
-              li: a(data-toggle="collapse" data-target="#navbar" href="#orders!closed") Closed
+              li: a(data-toggle="collapse" data-target="#navbar" data=status="OPEN" href="#orders") Open
+              li: a(data-toggle="collapse" data-target="#navbar" data=status="HOLD" href="#orders") Held
+              li: a(data-toggle="collapse" data-target="#navbar" data=status="SHORT" href="#orders") Short
+              li: a(data-toggle="collapse" data-target="#navbar" data=status="CLOSED" href="#orders") Closed
               li: a(data-toggle="collapse" data-target="#navbar" href="#orders") All
           li: a(data-toggle="collapse" data-target="#navbar" href="#inventory") Inventory
           li: a(data-toggle="collapse" data-target="#navbar" href="#log") Logs
@@ -60,3 +60,4 @@ block main
   section.page#settings(data-template="/settings.html")
   section.page#orders(data-template="/orders.html")
   section.page#inventory(data-template="/inventory.html")
+  section.page#log(data-template="/log.html")

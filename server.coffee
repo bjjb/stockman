@@ -21,8 +21,7 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
 
   app.set 'view engine', 'jade'
 
-  app.use (req, res, next) ->
-    return next() unless extname(req.path) is '.js'
+  coffee = (req, res, next) ->
     filename = "#{app.get('views')}#{req.path.replace(/\.js$/, '.coffee')}"
     sourceMap = true
     readFile filename, 'utf8', (err, data) ->
@@ -35,20 +34,17 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
       res.set 'Content-Type', 'text/javascript'
       res.end(js)
 
-  app.use (req, res, next) ->
-    return next() unless req.path is '/index.appcache'
+  appcache = (req, res, next) ->
     filename = "#{app.get('views')}#{req.path}"
     readFile filename, 'utf8', (err, data) ->
       throw err if err?
       { name, version } = require './package'
-      stat 'views', (err, stats) ->
-        throw err if err
-        date = stats.mtime
+      stat '.', (err, stats) ->
+        date = new Date(stats.mtime)
         appcache = mustache.render(data, { name, version, date })
         res.end(appcache)
 
-  app.use (req, res, next) ->
-    return next() unless extname(req.path) is '.css'
+  stylus = (req, res, next) ->
     filename = "#{app.get('views')}#{req.path.replace(/\.css$/, '.styl')}"
     readFile filename, 'utf8', (err, data) ->
       throw err if err?
@@ -61,16 +57,15 @@ server = ({ port, logLevel, staticDirs, middlewares } = {}) ->
           res.set 'Content-Type', 'text/css'
           res.end(css)
 
-  app.use(middleware...) for middleware in middlewares
-
   app.get '/', (req, res) -> res.render 'index'
+  app.use '/*.js', coffee
+  app.use '/*.css', stylus
+  app.use '/*.appcache', appcache
   app.get '/orders.html', (req, res) -> res.render 'orders'
   app.get '/inventory.html', (req, res) -> res.render 'inventory'
   app.get '/settings.html', (req, res) -> res.render 'settings'
   app.get '/dashboard.html', (req, res) -> res.render 'dashboard'
-  app.get '/images/logo.svg', (req, res) ->
-    readFile 'views/images/logo.svg', (err, data) ->
-      res.set('content-type', 'image/svg+xml').end(data)
+  app.get '/log.html', (req, res) -> res.render 'log'
   app.get '/favicon.ico', (req, res) -> res.end()
 
   app.listen port, ->

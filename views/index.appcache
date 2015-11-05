@@ -8,6 +8,7 @@ CACHE:
 /inventory.html
 /orders.html
 /settings.html
+/log.html
 /favicon.ico
 /images/logo.svg
 /css/application.css
@@ -39,4 +40,4 @@ CACHE:
 /js/application.js
 
 NETWORK:
-http://weinre.herokuapp.com/target/target-script-min.js#anonymous
+*
