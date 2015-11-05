@@ -343,6 +343,7 @@ spreadsheetHandler = (event) ->
       ui.addClass('body')('synchronizing')
       importSpreadsheet(spreadsheet)
       ui.goto '#dashboard'
+      false
 
 checkSpreadsheet = (id) ->
   getSpreadsheetData(id).then ({ inventory, orders }) ->
@@ -364,7 +365,7 @@ showError = (message) ->
   console.error(if message instanceof Error then message else Error(message))
   getUI.then (ui) ->
     ui.addClass('body')('error')
-    ui.$('.alert.error .message').innerHTML = message.toString()
+    ui.$('.alert.error .message').innerHTML = message?.toString()
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
@@ -379,7 +380,7 @@ synchronize = ->
     .then getChanges
     .then updateSpreadsheet
     .then hideSynchronizing
-    .catch failSynchronizing
+    #.catch failSynchronizing
 
 # Render the inventory section
 renderInventory = ->
