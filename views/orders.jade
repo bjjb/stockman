@@ -4,7 +4,7 @@
       | {{#status}} {{.}} {{/status}} Orders
   button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewOrder')
 
-form.form.filter(name='filter')
+form.form.filter(name='filter' action="javascript:void(0)" method="post")
   .form-group
     .input-group.input-group-lg
       label.input-group-addon(for="filter-input")

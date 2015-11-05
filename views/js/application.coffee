@@ -273,10 +273,13 @@ ordersHandler = (event) ->
     else if target.name is 'filter'
       filterOrders(target.value)
   if type is 'submit'
-    event.preventDefault()
     switch target.name
-      when 'filter' then filterOrders(target.filter.value)
-      when 'sell' then soldOrderItem(target)
+      when 'filter' 
+        filterOrders(target.filter.value)
+        false
+      when 'sell'
+        soldOrderItem(target)
+        false
       else throw "Unhandled #orders submit: #{target.name}"
     
 inventoryHandler = (event) ->
@@ -304,9 +307,10 @@ inventoryHandler = (event) ->
     if target.name is 'filter'
       filterProducts(target.value)
   if type is 'submit'
-    event.preventDefault()
     switch target.name
-      when 'filter' then filterProducts(target.filter.value)
+      when 'filter' 
+        filterProducts(target.filter.value)
+        return false
       else throw "Unhandled #inventory submit: #{target.name}"
 
 applicationCacheHandler = (event) ->
@@ -443,9 +447,8 @@ synchronize = ->
     .then getSpreadsheetChanges
     .then importSpreadsheet
     .then getChanges
-    .then updateSpreadsheet
     .then hideSynchronizing
-    .then -> console.debug(changes)
+    .then updateSpreadsheet
     .catch failSynchronizing
 
 # Render the inventory section
@@ -938,8 +941,14 @@ changeSpreadsheet = ->
 powerwash = ->
   if confirm("Are you sure you want to delete ALL your settings and restart?")
     { revoke_uri } = GOOGLE
-    getAuthToken().then (token) ->
-      uri = "#{revoke_uri}?token=#{token}"
+    uri = null
+    getAuthToken()
+      .then (token) ->
+        uri = "#{revoke_uri}?token=#{token}"
+      .catch ->
+        console.debug arguments
+        console.warn "Token already revoked?"
+        uri = location
       indexedDB.deleteDatabase('stockman')
       delete sessionStorage[k] for own k, v of sessionStorage
       delete localStorage[k] for own k, v of localStorage
