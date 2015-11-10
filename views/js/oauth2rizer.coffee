@@ -61,6 +61,7 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
     # console.debug "oauth2rizer exchange", JSON.stringify(arguments)
     grant_type = 'authorization_code'
     post(token_uri, { code, client_id, client_secret, grant_type, redirect_uri })
+      .catch (failure) -> console.debug failure
   remember ?= (result) ->
     # console.debug "oauth2rizer remember", JSON.stringify(arguments)
     { access_token, expires_in, token_type, refresh_token } = result
@@ -103,13 +104,16 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
       xhr.open 'POST', uri
       xhr.setRequestHeader 'Content-Type', 'application/x-www-form-urlencoded'
       xhr.addEventListener 'load', ->
-        return reject(@statusText) unless @status is 200
-        resolve(JSON.parse(@responseText))
-      xhr.addEventListener 'error', reject
+        return resolve(@responseText) if @status is 200
+        reject(@response) unless @status is 200
+      xhr.addEventListener 'error', ->
+        reject @error
       xhr.send(buildSearch(params))
   f = ->
     # console.debug "oauth2rizer CALL", JSON.stringify(arguments)
     new Promise (resolve, reject) ->
+      delete sessionStorage.access_token if sessionStorage.access_token is 'undefined'
+      delete localStorage.refresh_token if localStorage.refresh_token is 'undefined'
       # 1 - we have a valid access token
       { access_token, token_type, expires_at, host } = sessionStorage
       # console.debug access_token, expires_at

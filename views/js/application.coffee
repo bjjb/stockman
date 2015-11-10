@@ -108,10 +108,22 @@ OrderItem.create = ({
   })
   orderItem.save()
 
+OrderItem.get = (id) ->
+  db.orderitems.get(Number(id)).then (oi) ->
+    throw "404: OrderItem(#{id}" unless oi?.id
+    new OrderItem(oi)
+
+OrderItem::unsell = ->
+  console.debug "Unselling orderitem #{@id}"
+  @status = 'OPEN'
+  @price = null
+  @date_sold = null
+  @save()
+
 # Promises to create or update the OrderItem
 OrderItem::save = ->
   @updated = new Date()
-  debug "Saving order item #{@id} (#{@customer})"
+  console.debug "Saving order item #{@id} (#{@customer})"
   openDB.then (db) =>
     if @id then db.orderitems.put(@).then => @
     else
@@ -607,7 +619,8 @@ getSpreadsheetData = (id, since) ->
   debug "Getting spreadsheet data..."
   getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = 'Getting data...'
   debug "Getting spreadsheet data...", id, since
-  executeAppsScriptFunction('GetChanges')(id, since)
+  cache(sessionStorage)('data') ->
+    executeAppsScriptFunction('GetChanges')(id, since)
 
 # Assigns IDs to order items which don't have them. They get saved as part of
 # the process. Returns a function that expects orderitems, and will resolve to
@@ -688,8 +701,9 @@ findOrCreateOrder = (order) ->
 
 # Get the changes from the spreadsheet, and update the database
 getSpreadsheetChanges = ->
-  debug "Getting spreadsheet changes..."
+  debug "Getting spreadsheet changes"
   getAuthToken()
+    .catch console.debug
     .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
     .then (params) -> getSpreadsheetData(params...)
 
@@ -749,7 +763,14 @@ openDB = new Promise (resolve, reject) ->
 
 
 # Gets an authorization token
-getAuthToken = oauth2rizer(GOOGLE)
+getAuthToken = ->
+  oauth2rizer(GOOGLE)()
+    .catch (e) ->
+      console.error "getAuthToken: ", e
+      if e.error_description is "Token has been revoked."
+        delete localStorage.refresh_token
+        delete sessionStorage.access_token
+        oauth2rizer(GOOGLE)()
 Stockman.getAuthToken = getAuthToken
 
 # Gets a function which can execute the given Apps Script function remotely
@@ -827,6 +848,11 @@ sellOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
   ui.addClass("#order-item-#{orderitem}")('selling')
   ui.$("#order-item-#{orderitem} form.selling [name='price']").focus()
+
+unsellOrderItem = (target) ->
+  { dataset } = target
+  { orderitem } = dataset
+  OrderItem.get(orderitem).then (oi) -> oi.unsell()
 
 openOrderItem = (target) ->
   { dataset: { orderitem }, form } = target
