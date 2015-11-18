@@ -35,10 +35,10 @@ CACHE:
 /components/jquery/dist/jquery.min.js
 /components/bootstrap/dist/js/bootstrap.min.js
 /components/mustache.js/mustache.min.js
-/js/oauth2rizer.js
 /js/indexthebee.js
 /js/mvstar.js
 /js/application.js
+https://apis.google.com/js/platform.js
 
 NETWORK:
 *

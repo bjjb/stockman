@@ -13,7 +13,6 @@ GOOGLE =
   auth_uri: "https://accounts.google.com/o/oauth2/auth"
   token_uri: "https://www.googleapis.com/oauth2/v3/token"
   revoke_uri: "https://accounts.google.com/o/oauth2/revoke"
-
   scopes: [
     'https://www.googleapis.com/auth/spreadsheets'
     'https://www.googleapis.com/auth/drive'
@@ -171,6 +170,11 @@ Product = ({ id, product, type, total, available, price, units, comment, updated
   @comment = comment if comment
   @updated = new Date(updated) if updated
   @
+
+Product.getAll = ->
+  openDB.then (db) ->
+    db.products.getAll().then (ps) ->
+      new Product(p) for p in ps
 
 Product::save = ->
   openDB.then (db) =>
@@ -417,39 +421,47 @@ importSpreadsheet = ({ orders, inventory }) ->
 # Starts the whole thing
 start = ->
   debug "Starting..."
-  openDB.then (db) ->
-    debug "Opened DB"
-    db.products.count().then (count) ->
-      debug "Counted products: #{count}"
-      debug "Is there a spreadsheet? #{localStorage.spreadsheet}"
-      return setup() unless localStorage.spreadsheet
-      sync = getLastSyncedTime()
-      debug "Last synced time: #{sync}"
-      if sync? and sync > new Date() - SYNC_INTERVAL
-        debug "No need to sync."
-        getUI.then (ui) -> ui.goto('#dashboard')
-      else
-        debug "Need to synchronize!"
-        synchronize().then ->
-          getUI.then (ui) -> ui.goto('#dashboard')
+  setup().then synchronize
 
-# Goes to the spreadsheet page
 setup = ->
-  getUI.then (ui) -> ui.goto('#spreadsheet')
+  new Promise (resolve, reject) ->
+    getUI.then (ui) ->
+      # set up the offline handler
+      unless navigator.onLine
+        ui.addClass('body')('offline')
+      addEventListener 'online', ->
+        getUI.then (ui) ->
+          ui.replaceClass('body')('offline')('online')
+          setTimeout((-> ui.removeClass('body')('online')), 5000)
+      addEventListener 'offline', ->
+        getUI.then (ui) ->
+          ui.replaceClass('body')('online')('offline')
+      # Set up the router
+      router()
+      renderOrders()
+      renderInventory()
+
+# Promises to be online
+online = ->
+  new Promise (resolve, reject) ->
+    if navigator.onLine
+      return resolve()
+    else
+      addEventListener 'online', resolve
 
 showError = (message) ->
   console.error(if message instanceof Error then message else Error(message))
   getUI.then (ui) ->
     ui.addClass('body')('error')
     ui.$('.alert.error .message').innerHTML = JSON.stringify(message)
-    throw message
+    #throw message
 
 # Synchronize the local database with the spreadsheet
 synchronize = ->
+  return Promise.reject("offline") unless navigator.onLine
   showSynchronizing = -> getUI.then (ui) -> ui.addClass('body')('synchronizing')
   hideSynchronizing = -> getUI.then (ui) -> ui.removeClass('body')('synchronizing')
   failSynchronizing = (reason) -> hideSynchronizing().then -> showError(reason)
-
   getUI
     .then ui.$('.synchronizing .message').innerHTML = 'Synchronizing...'
     .then showSynchronizing
@@ -522,6 +534,7 @@ getInventoryForUI = ->
   openDB.then (db) ->
     db.products.type.getAll()
       .then (products) -> new Product(p) for p in products
+      .then (products) -> console.debug(products); products
       .then (products) -> {products}
 
 # Gets values for the settings page
@@ -584,23 +597,25 @@ getLastSyncedTime = ->
   { lastSynced } = localStorage
   new Date(lastSynced) if lastSynced?
 
+# Sets the ID of the spreadsheet, and removes the 'no-spreadsheet' class from
+# the body, so the main section can be shown and the spreadsheet form hidden.
+setSpreadsheetID = (event) ->
+
 # Gets the ID of the spreadsheet - tries to get it from localStorage, shows
 # the chooser otherwise.
-getSpreadsheetID = ->
-  debug "Getting spreadsheet ID..."
+getSpreadsheetID =
   new Promise (resolve, reject) ->
     { spreadsheet } = localStorage
     return resolve(spreadsheet) if spreadsheet
     getUI.then (ui) ->
       debug "No spreadsheet ID in session storage - going to settings."
-      ui.goto('#settings')
-      reject("No spreadsheet selected.")
+      ui.addClass('body')('no-spreadsheet')
+      ui.listen('form[name="spreadsheet"]')('submit') setSpreadsheetID
 
 # Lets you forget the ID of the spreadsheet.
 getSpreadsheetID.refresh = ->
   delete localStorage.spreadsheet
   getSpreadsheetID()
-
 
 # Gets a list of spreadsheets in the user's Google Drive. Returns an array of
 # objects with id and name.
@@ -702,10 +717,10 @@ findOrCreateOrder = (order) ->
 # Get the changes from the spreadsheet, and update the database
 getSpreadsheetChanges = ->
   debug "Getting spreadsheet changes"
-  getAuthToken()
-    .catch console.debug
-    .then -> Promise.all([getSpreadsheetID(), getLastSyncedTime()])
+  signin
+    .then -> Promise.all([getSpreadsheetID, getLastSyncedTime])
     .then (params) -> getSpreadsheetData(params...)
+    .catch console.debug
 
 # Database section
 db = null
@@ -761,17 +776,6 @@ openDB = new Promise (resolve, reject) ->
     reject @error.message
   request.addEventListener 'upgradeneeded', migrate
 
-
-# Gets an authorization token
-getAuthToken = ->
-  oauth2rizer(GOOGLE)()
-    .catch (e) ->
-      console.error "getAuthToken: ", e
-      if e.error_description is "Token has been revoked."
-        delete localStorage.refresh_token
-        delete sessionStorage.access_token
-        oauth2rizer(GOOGLE)()
-Stockman.getAuthToken = getAuthToken
 
 # Gets a function which can execute the given Apps Script function remotely
 executeAppsScriptFunction = (functionName) ->
@@ -924,40 +928,40 @@ console.log "Welcome to stockman v#{VERSION}"
 start()
 
 router = (event) ->
-  { oldURL, newURL } = event
+  if event?
+    { oldURL, newURL } = event
+  else
+    [ oldURL, newURL ] = [ null, location ]
   url = new URL(newURL)
   { pathname, hash } = url
   debug "Hash change #{oldURL} → #{newURL}!", event
-  switch hash
-    when '#dashboard'    then renderDashboard()
-    when '#settings'     then renderSettings()
-    when '#inventory'    then renderInventory()
-    when '#orders'       then renderOrders()
-    when '#log'          then renderLog()
-    when '#spreadsheet'  then renderSpreadsheet()
-    else console.warn "Unknown page: #{hash}"
+  switch pathname
+    when '/orders.html' then renderOrders()
+    when '/settings.html' then renderSettings()
+    when '/settings.html' then renderInventory()
+
+auth2 = null
+signin = ->
+  new Promise (resolve, reject) ->
+    debug "Signing in..."
+    onSuccess = ->
+      debug "Signed in."
+      getUI.then (ui) ->
+        ui.replaceClass('body')('unauthenticated')('authenticated')
+        resolve()
+    onFailure = ->
+      debug "Sign in failed!"
+      getUI.then (ui) ->
+        ui.replaceClass('body')('authenticated')('unauthenticated')
+        reject()
+    addEventListener 'load', ->
+      gapi.signin2.render 'signin2',
+        scope: GOOGLE.scopes.join(' ')
+        theme: 'dark'
+        onsuccess: onSuccess
+        onfailure: onFailure
 
 addEventListener 'hashchange', router
-
-addEventListener 'online', ->
-  getUI.then (ui) ->
-    ui.replaceClass('body')('offline')('online')
-    setTimeout((-> ui.removeClass('body')('online')), 5000)
-addEventListener 'offline', ->
-  getUI.then (ui) ->
-    ui.replaceClass('body')('online')('offline')
-
-# TODO: DRY!
-getUI.then (ui) ->
-  { hash } = location
-  switch hash
-    when '#dashboard'    then renderDashboard()
-    when '#settings'     then renderSettings()
-    when '#inventory'    then renderInventory()
-    when '#orders'       then renderOrders()
-    when '#log'          then renderLog()
-    when '#spreadsheet'  then renderSpreadsheet()
-    else console.warn "Unknown page: #{hash}"
 
 changeSpreadsheet = ->
   if confirm "Are you sure you want to change spreadsheets?"
@@ -981,7 +985,19 @@ powerwash = ->
       delete localStorage[k] for own k, v of localStorage
       setTimeout((-> location.replace(uri)), 2000)
 
+getAuthToken = ->
+  console.debug "Getting auth token..."
+  gapi.auth2.getAuthInstance()
+
 Stockman.powerwash = powerwash
 
 Spreadsheet = { getUserSpreadsheets, getSpreadsheetID, getSpreadsheetData }
 merge(Stockman)({ Order, OrderItem, Product, Spreadsheet })
+
+@onSignIn = ->
+  console.debug "Signed in!"
+  console.debug @
+  console.debug arguments
+
+addEventListener 'error', ->
+  debug arguments

@@ -1,104 +1,108 @@
-.page-header
-  h1
-    span.icon.glyphicon.glyphicon-shopping-cart
-      | {{#status}} {{.}} {{/status}} Orders
-  button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewOrder')
+extends layout
+block main
+  .page-header
+    h1
+      span.icon.glyphicon.glyphicon-shopping-cart
+        | Orders
+    button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewOrder')
 
-form.form.filter(name='filter' action="javascript:void(0)" method="post")
-  .form-group
-    .input-group.input-group-lg
-      label.input-group-addon(for="filter-input")
-        span.glyphicon.glyphicon-search
-      input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a customer")
-    span#clear-filter.clear.glyphicon.glyphicon-remove-circle
-      
-.panel-group#order-panels
-  | {{#orders}}
-  .order.panel(id="order-{{order_id}}" class="{{status}}" class="panel-default")
-    .panel-heading
-      h4.panel-title
-        a(data-toggle="collapse" data-parent="#order-panels" href="#order-collapse-{{order_id}}")
-          span.customer {{customer}}
-          small.status.pull-right {{items.open.length}} {{status}}
-    .panel-collapse.collapse(id="order-collapse-{{order_id}}")
-      .panel-body
-        ul.list-group
-          | {{#items}}
-          .li.list-group-item.order-item(
-              id="order-item-{{id}}"
-              class="{{status}}{{#comment}} comment{{/comment}}"
-              data-order="{{order_id}}")
-            .container-fluid
-              .row
-                .col-sm-4
-                  .details
-                    span.qty {{qty}}
-                    small ×
-                    span.product {{product}}
-                .col-sm-8
-                  form.form.form-inline.open
-                    .btn-group
-                      button.action.btn.btn-success(data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
-                      button.btn.dropdown-toggle.btn-success(type="button" name="chooseAction" data-toggle="dropdown")
-                        span.caret
-                        span.sr-only Toggle dropdown
-                      ul.dropdown-menu
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Sell
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
-                        li.divider
-                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
-                  form.form.form-inline.sold
-                    small.price
-                      output.price(name="price" value="{{getPrice}}") {{getPrice}}
-                    .btn-group
-                      button.action.btn.btn-default(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Undo" type="button" name="action") Undo
-                  form.form.form-inline.hold
-                    .btn-group
-                      button.btn.btn-success(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
-                      button.btn.dropdown-toggle.btn-success(type="button" name="chooseAction" data-toggle="dropdown")
-                        span.caret
-                        span.sr-only Toggle dropdown
-                      ul.dropdown-menu
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
-                        li.divider
-                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
-                  form.form.form-inline.short
-                    .btn-group
-                      button.action.btn.btn-primary(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" type="button" name="action") Open
-                      button.btn.dropdown-toggle.btn-primary(type="button" name="chooseAction" data-toggle="dropdown")
-                        span.caret
-                        span.sr-only Toggle dropdown
-                      ul.dropdown-menu
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
-                        li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
-                        li.divider
-                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
-                  form.form.form-inline.selling(name='sell' data-order="{{order.order_id}}" data-orderitem="{{id}}")
-                    .input-group
-                      span.input-group-addon $
-                      input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-order="{{order_id}}" data-orderitem="{{id}}")
-                      .input-group-btn
-                        button.action.btn.btn-success.action(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Checkout" type='submit' name="sell" disabled) Sell
-                        button.btn.btn-success.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
+  form.form.filter(name='filter' action="javascript:void(0)" method="post")
+    .form-group
+      .input-group.input-group-lg
+        label.input-group-addon(for="filter-input")
+          span.glyphicon.glyphicon-search
+        input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a customer")
+      span#clear-filter.clear.glyphicon.glyphicon-remove-circle
+        
+  .panel-group#orders(data-template="#orders-template")
+
+  script#orders-template(type="text/html")
+    | {{#orders}}
+    .order.panel(id="order-{{order_id}}" class="{{status}}" class="panel-default")
+      .panel-heading
+        h4.panel-title
+          a(data-toggle="collapse" data-parent="#orders" href="#order-collapse-{{order_id}}")
+            span.customer {{customer}}
+            small.status.pull-right {{items.open.length}} {{status}}
+      .panel-collapse.collapse(id="order-collapse-{{order_id}}")
+        .panel-body
+          ul.list-group
+            | {{#items}}
+            .li.list-group-item.order-item(
+                id="order-item-{{id}}"
+                class="{{status}}{{#comment}} comment{{/comment}}"
+                data-order="{{order_id}}")
+              .container-fluid
+                .row
+                  .col-sm-4
+                    .details
+                      span.qty {{qty}}
+                      small ×
+                      span.product {{product}}
+                  .col-sm-8
+                    form.form.form-inline.open
+                      .btn-group
+                        button.action.btn.btn-success(data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
+                        button.btn.dropdown-toggle.btn-success(type="button" name="chooseAction" data-toggle="dropdown")
                           span.caret
-                          span.sr-only Choose action
-                        ul.dropdown-menu.dropdown-menu-right
-                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Cancel
+                          span.sr-only Toggle dropdown
+                        ul.dropdown-menu
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Sell
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
                           li.divider
-                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                            li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                    form.form.form-inline.sold
+                      small.price
+                        output.price(name="price" value="{{getPrice}}") {{getPrice}}
+                      .btn-group
+                        button.action.btn.btn-default(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Undo" type="button" name="action") Undo
+                    form.form.form-inline.hold
+                      .btn-group
+                        button.btn.btn-success(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" type="button" name="action") Sell
+                        button.btn.dropdown-toggle.btn-success(type="button" name="chooseAction" data-toggle="dropdown")
+                          span.caret
+                          span.sr-only Toggle dropdown
+                        ul.dropdown-menu
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Short" href='javascript:void(0)') Short
+                          li.divider
+                            li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                    form.form.form-inline.short
+                      .btn-group
+                        button.action.btn.btn-primary(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" type="button" name="action") Open
+                        button.btn.dropdown-toggle.btn-primary(type="button" name="chooseAction" data-toggle="dropdown")
+                          span.caret
+                          span.sr-only Toggle dropdown
+                        ul.dropdown-menu
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Open" href='javascript:void(0)') Open
+                          li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Hold" href='javascript:void(0)') Hold
+                          li.divider
+                            li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
+                    form.form.form-inline.selling(name='sell' data-order="{{order.order_id}}" data-orderitem="{{id}}")
+                      .input-group
+                        span.input-group-addon $
+                        input.form-control(type="number" name="price" step="0.05" min="0.0" placeholder="Price" data-order="{{order_id}}" data-orderitem="{{id}}")
+                        .input-group-btn
+                          button.action.btn.btn-success.action(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Checkout" type='submit' name="sell" disabled) Sell
+                          button.btn.btn-success.dropdown-toggle(type='button' class="{{status}}" data-toggle="dropdown")
+                            span.caret
+                            span.sr-only Choose action
+                          ul.dropdown-menu.dropdown-menu-right
+                            li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Sell" href='javascript:void(0)') Cancel
+                            li.divider
+                            li: a(data-order="{{order_id}}" data-orderitem="{{id}}" data-action="Delete" href='javascript:void(0)') Delete
 
-          | {{/items}}
+            | {{/items}}
 
-        p.comment {{comment}}
+          p.comment {{comment}}
 
-      .panel-footer
-        .row
-          .col-xs-12
-            form.total.form.form-inline.pull-right
-              .form-group
-                label.control-label Total
-                output.form-control-static.total(name="total" value="{{getTotal}}") {{getTotal}}
+        .panel-footer
+          .row
+            .col-xs-12
+              form.total.form.form-inline.pull-right
+                .form-group
+                  label.control-label Total
+                  output.form-control-static.total(name="total" value="{{getTotal}}") {{getTotal}}
 
-  | {{/orders}}
+    | {{/orders}}

@@ -4,22 +4,76 @@ html
     meta(charset="utuf8")
     title St〇ck Manager
     meta(name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no")
+    meta(name="google-signin-client_id" content="882209763081-kkne3l1sio3iro2u0ddt0mi5m9c6lf61.apps.googleusercontent.com")
     link(rel="stylesheet" href="/css/application.css")
     link(rel="stylesheet" href="/components/font-awesome/css/font-awesome.css")
     script(src="/components/jquery/dist/jquery.min.js")
     script(src="/components/bootstrap/dist/js/bootstrap.min.js")
     script(src="/components/mustache.js/mustache.min.js")
-    script(src="/js/oauth2rizer.js")
     script(src="/js/indexthebee.js")
     script(src="/js/mvstar.js")
     script(src="/js/application.js")
+    script(src="https://apis.google.com/js/platform.js" defer async)
 
-  body
+  body.unauthenticated
     nav
-      block nav
+      .navbar.navbar-default
+        .container
+          header.navbar-header
+            button.navbar-toggle.collapsed(type="button" data-toggle="collapse" data-target='#navbar')
+              span.icon-bar
+              span.icon-bar
+              span.icon-bar
+            a.navbar-brand(href="/")
+              span.icon.glyphicon.glyphicon-piggy-bank
+              | L&S Stock
+          #navbar.collapse.navbar-collapse
+            ul.nav.navbar-nav.navbar-right
+              // TODO: set active class on li
+              li.dropdown
+                a.dropdown-toggle(href='#' data-toggle="dropdown")
+                  | Orders
+                  span.caret
+                ul.dropdown-menu
+                  li: a(data-toggle="collapse" data-target="#navbar" href="/orders.html?status=OPEN") Open
+                  li: a(data-toggle="collapse" data-target="#navbar" href="/orders.html?status=HOLD") Held
+                  li: a(data-toggle="collapse" data-target="#navbar" href="/orders.html?status=SHORT") Short
+                  li: a(data-toggle="collapse" data-target="#navbar" href="/orders.html?status=CLOSED") Closed
+                  li: a(data-toggle="collapse" data-target="#navbar" href="/orders.html") All
+              li: a(data-toggle="collapse" data-target="#navbar" href="/inventory.html") Inventory
+              li: a(data-toggle="collapse" data-target="#navbar" href="/log.html") Logs
+              li: a(data-toggle="collapse" data-target="#navbar" href="/settings.html") Settings
 
     aside.class-paged
-      block messages
+      .alert.info.authenticate
+        p.message You need to sign in to your Google account to access your spreadsheet.
+        span#signin2
+
+      .alert.error.alert-danger
+        p.message
+        span.icon.glyphicon.glyphicon-exclamation-sign
+
+      .alert.offline.alert-warning
+        p.message Currently offline
+        span.icon.glyphicon.glyphicon-cloud
+
+      .alert.online.alert-info
+        p.message We're back online!
+        span.icon.glyphicon.glyphicon-cloud
+
+      .alert.synchronizing.alert-info
+        p.message Synchronizing data...
+        span.icon.glyphicon.glyphicon-upload.pulse
+
+      .alert.appcache.alert-info
+        button.close(data-dismiss='alert'): span ×
+        h4 Upgrade available
+        p
+          | A new version of the app has been downloaded, and is ready to
+          | install.
+        p.text-center
+          button.btn.btn-info.glyphicon.glyphicon-upload(type="button")
+            | Upgrade
 
     main.target-pages.container
       block main

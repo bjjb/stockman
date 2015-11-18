@@ -1,25 +1,29 @@
-.page-header
-  h1 
-    span.icon.glyphicon.glyphicon-scale
-    | Inventory
-  // button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
+extends layout
+block main
+  .page-header
+    h1 
+      span.icon.glyphicon.glyphicon-scale
+      | Inventory
+    // button.btn.btn-default.icon.glyphicon.glyphicon-plus(type='button' action='NewProduct')
 
-form.form.filter(name='filter' action="javascript:void(0)" method="post")
-  .form-group
-    .input-group.input-group-lg
-      label.input-group-addon(for="filter-input")
-        span.glyphicon.glyphicon-search
-      input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a product")
-    span#clear-filter.clear.glyphicon.glyphicon-remove-circle
-      
-table.table.products(data-collection="products")
-  thead
-    tr
-      th.type Type
-      th.product Name
-      th.total.number Total
-      th.available.number Available
-  tbody.products
+  form.form.filter(name='filter' action="javascript:void(0)" method="post")
+    .form-group
+      .input-group.input-group-lg
+        label.input-group-addon(for="filter-input")
+          span.glyphicon.glyphicon-search
+        input#filter-input.form-control.input-lg(type="search" name="filter" placeholder="Find a product")
+      span#clear-filter.clear.glyphicon.glyphicon-remove-circle
+        
+  table.table.products(data-collection="products")
+    thead
+      tr
+        th.type Type
+        th.product Name
+        th.total.number Total
+        th.available.number Available
+    tbody#inventory.products(data-template="#products-template")
+
+  script#products-template(type="text/html")
     | {{#products}}
     tr.product(class="{{status}}" data-id="{{id}}")
       td.value.type {{type}}

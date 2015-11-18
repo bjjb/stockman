@@ -1,7 +1,7 @@
 'use strict'
 # MV*, a browser UI behaviour library.
 
-MVStar = ({ document, location, history, Element, Promise, Mustache, setTimeout, console, sync, authorize } = @) ->
+MVStar = ({ document, location, history, Element, Promise, Mustache, setTimeout, console } = @) ->
   # DOM manipulation utilities
   $ = (q) =>
     return q if q instanceof Element
@@ -74,11 +74,16 @@ MVStar = ({ document, location, history, Element, Promise, Mustache, setTimeout,
         xhr.send()
     get: (url) -> ajax.request('get', url)
 
+  views = []
+
+  routes = []
+
   templates = []
   
   template = (q) ->
     return (templates[q] = ajax.get(q)) if q.match /^\//
     templates[q] = Promise.resolve $(q).innerHTML
+
   template(e.dataset.template) for e in $$('[data-template]')
 
   {
