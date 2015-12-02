@@ -65,14 +65,15 @@ MVStar = ({ document, location, history, Element, Promise, Mustache, setTimeout,
               e.removeEventListener(event, callback) for e in $$(q)
 
   ajax =
-    request: (method, url) ->
+    request: (method, url, data = '') ->
       new Promise (resolve, reject) ->
         xhr = new XMLHttpRequest()
         xhr.open method, url
         xhr.addEventListener 'load', -> resolve(@responseText)
         xhr.addEventListener 'error', -> reject(@error.message)
-        xhr.send()
+        xhr.send(data)
     get: (url) -> ajax.request('get', url)
+    post: (url, data) -> ajax.request('put', url, data)
 
   views = []
 

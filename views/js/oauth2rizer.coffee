@@ -46,25 +46,20 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
   extractParams = (search) ->
     search?.split('&').reduce(extractParam, {}) or {}
   start ?= ->
-    # console.debug "oauth2rizer Start"
     state = _state
     redirect(auth_uri, { client_id, response_type, redirect_uri, state, scope, access_type })
   redirect ?= (uri, params) ->
-    # console.debug "oauth2rizer redirect", JSON.stringify(arguments)
     oldLocation = location.toString()
     location.replace(buildURL(uri, params))
   refresh ?= (refresh_token) ->
-    # console.debug "oauth2rizer refresh"
     grant_type = 'refresh_token'
     post(token_uri, { client_id, client_secret, grant_type, refresh_token })
   exchange ?= (code) ->
-    # console.debug "oauth2rizer exchange", JSON.stringify(arguments)
     grant_type = 'authorization_code'
     post(token_uri, { code, client_id, client_secret, grant_type, redirect_uri })
       .catch (failure) -> console.debug failure
   remember ?= (result) ->
-    # console.debug "oauth2rizer remember", JSON.stringify(arguments)
-    { access_token, expires_in, token_type, refresh_token } = result
+    { access_token, expires_in, token_type, refresh_token } = JSON.parse(result)
     expires_at = new Date()
     expires_at.setTime(expires_at.getTime() + expires_in * 600)
     expires_at = expires_at.getTime()
@@ -77,17 +72,14 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
     sessionStorage.access_token = access_token
     access_token
   revoke ?= (token) ->
-    # console.debug "oauth2rizer revoke", JSON.stringify(arguments)
     delete localStorage.host
     delete localStorage.refresh_token
     delete sessionStorage.host
     delete sessionStorage.token_type
     delete sessionStorage.expires_at
     delete sessionStorage.access_token
-    # console.debug "==== REVOKE #{revoke_uri}?token=#{token}"
     location.replace("#{revoke_uri}?token=#{token}")
   get ?= (uri, params) ->
-    # console.debug "oauth2rizer get", JSON.stringify(arguments)
     new Promise (resolve, reject) ->
       xhr = new XMLHttpRequest
       uri = [uri, buildSearch(params)].join('?')
@@ -98,7 +90,6 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
       xhr.addEventListener 'error', reject
       xhr.send()
   post ?= (uri, params) ->
-    # console.debug "oauth2rizer post", JSON.stringify(arguments)
     new Promise (resolve, reject) ->
       xhr = new XMLHttpRequest
       xhr.open 'POST', uri
@@ -110,26 +101,20 @@ oauth2rizer = ({ client_id, client_secret, auth_uri, token_uri, redirect_uri,
         reject @error
       xhr.send(buildSearch(params))
   f = ->
-    # console.debug "oauth2rizer CALL", JSON.stringify(arguments)
     new Promise (resolve, reject) ->
-      delete sessionStorage.access_token if sessionStorage.access_token is 'undefined'
-      delete localStorage.refresh_token if localStorage.refresh_token is 'undefined'
       # 1 - we have a valid access token
       { access_token, token_type, expires_at, host } = sessionStorage
-      # console.debug access_token, expires_at
       return resolve(access_token) if access_token? and expires_at > new Date().getTime()
-      # console.debug "No access token. Refresh?"
       # 2 - we have a valid refresh token
       { refresh_token, host } = localStorage
-      # console.debug access_token, expires_at
       return refresh(refresh_token).then(remember).then(resolve) if refresh_token?
-      # console.debug "No refresh token. State?"
       # 3 - this page was redirected from an authorization request
       { state, code, error } = extractParams(location.search[1..])
-      return reject(error) if error?
-      return exchange(code).then(remember).then(-> redirect(redirect_uri)) if state is _state
+      if error?
+        return reject(error)
+      if state is _state
+        return exchange(code).then(remember)
       # 4 - None of the above,
-      # console.debug "No state. Start!"
       start()
   f.revoke = ->
     { access_token } = sessionStorage

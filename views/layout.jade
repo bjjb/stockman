@@ -4,7 +4,6 @@ html
     meta(charset="utuf8")
     title St〇ck Manager
     meta(name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no")
-    meta(name="google-signin-client_id" content="882209763081-kkne3l1sio3iro2u0ddt0mi5m9c6lf61.apps.googleusercontent.com")
     link(rel="stylesheet" href="/css/application.css")
     link(rel="stylesheet" href="/components/font-awesome/css/font-awesome.css")
     script(src="/components/jquery/dist/jquery.min.js")
@@ -12,8 +11,8 @@ html
     script(src="/components/mustache.js/mustache.min.js")
     script(src="/js/indexthebee.js")
     script(src="/js/mvstar.js")
+    script(src="/js/oauth2rizer.js")
     script(src="/js/application.js")
-    script(src="https://apis.google.com/js/platform.js" defer async)
 
   body.unauthenticated
     nav
@@ -45,10 +44,6 @@ html
               li: a(data-toggle="collapse" data-target="#navbar" href="/settings.html") Settings
 
     aside.class-paged
-      .alert.info.authenticate
-        p.message You need to sign in to your Google account to access your spreadsheet.
-        span#signin2
-
       .alert.error.alert-danger
         p.message
         span.icon.glyphicon.glyphicon-exclamation-sign

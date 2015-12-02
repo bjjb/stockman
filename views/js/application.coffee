@@ -13,10 +13,13 @@ GOOGLE =
   auth_uri: "https://accounts.google.com/o/oauth2/auth"
   token_uri: "https://www.googleapis.com/oauth2/v3/token"
   revoke_uri: "https://accounts.google.com/o/oauth2/revoke"
+  state: "authorized"
   scopes: [
     'https://www.googleapis.com/auth/spreadsheets'
     'https://www.googleapis.com/auth/drive'
   ]
+
+Stockman.GOOGLE = GOOGLE
 
 SYNC_INTERVAL = 1000 * 60 * 60 # 1 hour
 
@@ -28,7 +31,7 @@ ajax =
       xhr.open 'get', url
       xhr.addEventListener 'load', ->
         return resolve(@responseText) if @status is 200
-        reject @ 
+        reject @
       xhr.addEventListener 'error', -> reject(@)
       xhr.send()
   handle: (handlers = {}) -> (e) -> handlers[@status]?(e)
@@ -421,7 +424,9 @@ importSpreadsheet = ({ orders, inventory }) ->
 # Starts the whole thing
 start = ->
   debug "Starting..."
-  setup().then synchronize
+  setup()
+    .then synchronize
+    .then -> getUI.then (ui) -> ui.goto('#dashboard')
 
 setup = ->
   new Promise (resolve, reject) ->
@@ -436,10 +441,18 @@ setup = ->
       addEventListener 'offline', ->
         getUI.then (ui) ->
           ui.replaceClass('body')('online')('offline')
+      # Render all views
+      render()
       # Set up the router
       router()
-      renderOrders()
-      renderInventory()
+      # OK
+      resolve()
+
+# Render everything
+render = ->
+  renderDashboard()
+  renderOrders()
+  renderInventory()
 
 # Promises to be online
 online = ->
@@ -470,7 +483,7 @@ synchronize = ->
     .then getChanges
     .then hideSynchronizing
     .then updateSpreadsheet
-    .catch failSynchronizing
+    #.catch failSynchronizing
 
 # Render the inventory section
 renderInventory = ->
@@ -494,7 +507,6 @@ renderSpreadsheet = ->
     ui.listen('#spreadsheet')('change', 'click', 'submit')(spreadsheetHandler)
     ui.addClass('#spreadsheet')('downloading')
     ui.disable('#spreadsheet select')
-    ui.goto('#spreadsheet')
     getUserSpreadsheets().then (spreadsheets) ->
       ui.render('#spreadsheet')({ spreadsheets })
       ui.enable('#spreadsheet select')
@@ -534,8 +546,7 @@ getInventoryForUI = ->
   openDB.then (db) ->
     db.products.type.getAll()
       .then (products) -> new Product(p) for p in products
-      .then (products) -> console.debug(products); products
-      .then (products) -> {products}
+      .then (products) -> { products }
 
 # Gets values for the settings page
 getSettingsForUI = ->
@@ -564,11 +575,10 @@ getDashboardForUI = ->
       inventory.message = "You're #{-sp.available} short on #{sp.product}" if sp = short.shift()
       inventory.message += " and #{short.length} other products" if short.length
       return dashboard if inventory.message?
-      inventory.message = "You're out of #{sp.product}" if op = out.shift()
+      inventory.message = "You're out of #{op.product}" if op = out.shift()
       inventory.message += " and #{out.length} other products" if out.length
       inventory.message = "You have no products!" if count is 0
       inventory.message ?= "The inventory looks good!"
-      console.debug dashboard
       dashboard
       
 # Gets a function to merge the second argument into the first
@@ -603,14 +613,16 @@ setSpreadsheetID = (event) ->
 
 # Gets the ID of the spreadsheet - tries to get it from localStorage, shows
 # the chooser otherwise.
-getSpreadsheetID =
+getSpreadsheetID = ->
   new Promise (resolve, reject) ->
     { spreadsheet } = localStorage
     return resolve(spreadsheet) if spreadsheet
+    getUserSpreadsheets()
     getUI.then (ui) ->
-      debug "No spreadsheet ID in session storage - going to settings."
-      ui.addClass('body')('no-spreadsheet')
-      ui.listen('form[name="spreadsheet"]')('submit') setSpreadsheetID
+      renderSpreadsheet()
+      debug "No spreadsheet ID..."
+      ui.goto '#spreadsheet'
+      ui.listen('#spreadsheet form[name="spreadsheet"]')('submit') setSpreadsheetID
 
 # Lets you forget the ID of the spreadsheet.
 getSpreadsheetID.refresh = ->
@@ -633,7 +645,6 @@ getUserSpreadsheets.refresh = ->
 getSpreadsheetData = (id, since) ->
   debug "Getting spreadsheet data..."
   getUI.then (ui) -> ui.$('.synchronizing .message').innerHTML = 'Getting data...'
-  debug "Getting spreadsheet data...", id, since
   cache(sessionStorage)('data') ->
     executeAppsScriptFunction('GetChanges')(id, since)
 
@@ -717,8 +728,7 @@ findOrCreateOrder = (order) ->
 # Get the changes from the spreadsheet, and update the database
 getSpreadsheetChanges = ->
   debug "Getting spreadsheet changes"
-  signin
-    .then -> Promise.all([getSpreadsheetID, getLastSyncedTime])
+  Promise.all([getSpreadsheetID(), getLastSyncedTime()])
     .then (params) -> getSpreadsheetData(params...)
     .catch console.debug
 
@@ -779,6 +789,7 @@ openDB = new Promise (resolve, reject) ->
 
 # Gets a function which can execute the given Apps Script function remotely
 executeAppsScriptFunction = (functionName) ->
+  console.debug "Executing apps script function #{functionName}"
   sanitize = (params) ->
     return params unless typeof params is 'object'
     return params.toISOString() if params instanceof Date
@@ -939,27 +950,10 @@ router = (event) ->
     when '/orders.html' then renderOrders()
     when '/settings.html' then renderSettings()
     when '/settings.html' then renderInventory()
+    when '/', 'index.html' then renderDashboard()
 
-auth2 = null
-signin = ->
-  new Promise (resolve, reject) ->
-    debug "Signing in..."
-    onSuccess = ->
-      debug "Signed in."
-      getUI.then (ui) ->
-        ui.replaceClass('body')('unauthenticated')('authenticated')
-        resolve()
-    onFailure = ->
-      debug "Sign in failed!"
-      getUI.then (ui) ->
-        ui.replaceClass('body')('authenticated')('unauthenticated')
-        reject()
-    addEventListener 'load', ->
-      gapi.signin2.render 'signin2',
-        scope: GOOGLE.scopes.join(' ')
-        theme: 'dark'
-        onsuccess: onSuccess
-        onfailure: onFailure
+getAuthToken = ->
+  oauth2rizer(GOOGLE)()
 
 addEventListener 'hashchange', router
 
@@ -985,19 +979,10 @@ powerwash = ->
       delete localStorage[k] for own k, v of localStorage
       setTimeout((-> location.replace(uri)), 2000)
 
-getAuthToken = ->
-  console.debug "Getting auth token..."
-  gapi.auth2.getAuthInstance()
-
 Stockman.powerwash = powerwash
 
 Spreadsheet = { getUserSpreadsheets, getSpreadsheetID, getSpreadsheetData }
 merge(Stockman)({ Order, OrderItem, Product, Spreadsheet })
-
-@onSignIn = ->
-  console.debug "Signed in!"
-  console.debug @
-  console.debug arguments
 
 addEventListener 'error', ->
   debug arguments

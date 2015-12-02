@@ -7,3 +7,10 @@ block main
   section.page#inventory(data-template="/inventory.html")
   section.page#log(data-template="/log.html")
   section.page#spreadsheet(data-template="/spreadsheet.html")
+  section.page#authorize
+    .page-header
+      h1 Sign in to your Google account
+    p.lead.
+      To access your spreadsheet, you need to sign in to Google. Click the button
+      to get started.
+    #google-signin
