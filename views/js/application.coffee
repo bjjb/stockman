@@ -423,10 +423,99 @@ importSpreadsheet = ({ orders, inventory }) ->
     
 # Starts the whole thing
 start = ->
-  debug "Starting..."
-  setup()
-    .then synchronize
-    .then -> getUI.then (ui) -> ui.goto('#dashboard')
+  Promise.resolve()
+    .then authorize
+    .then spreadsheet
+    .then orders
+    .then inventory
+    .then dashboard
+
+# Doesn't resolve until the user has authorized their app to access their
+# Google Spreadsheets.
+authorize = ->
+  console.debug 'authorize...'
+  new Promise (resolve, reject) ->
+    { state } = extractParams(location.search)
+    if state
+      throw "Alright, state is #{state}!"
+    { hash } = location.hash
+    if hash
+      throw "Alright, hash is #{hash}"
+    if access_token = sessionStorage.access_token
+      return authorize.checkToken(access_token)
+    else if refresh_token = localStorage.refresh_token
+      return authorize.refreshToken(refresh_token)
+    else
+      return authorize.redirect()
+authorize.checkToken = (access_token) ->
+  uri = "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=#{access_token}"
+  xhr = new XMLHttpRequest()
+  xhr.open(uri)
+  xhr.addEventListener 'load', ->
+    console.debug 'response, yey', JSON.parse(@responseText)
+    throw "now what?"
+  xhr.addEventListener 'error', ->
+    console.error 'weird, error checking access token', @response
+    reject("Failed to check the access token!!")
+  xhr.send()
+authorize.refreshToken = ->
+  xhr = new XMLHttpRequest()
+  xhr.open authorize.refresh_uri
+authorize.redirect = ->
+  url = buildURL "https://accounts.google.com/o/oauth2/auth",
+    client_id: "882209763081-kkne3l1sio3iro2u0ddt0mi5m9c6lf61.apps.googleusercontent.com"
+    #client_secret: "0og9Da5QRapxyv8MvYCAOSkD"
+    state: "authorized"
+    response_type: 'code'
+    scope: [
+      'https://www.googleapis.com/auth/spreadsheets'
+      'https://www.googleapis.com/auth/drive'
+    ].join ' '
+    redirect_uri: "#{location.protocol}//#{location.host}"
+  location.replace url
+  Promise.reject()
+
+# Utility method to build a URL from parameters
+buildURL = (host, params) ->
+  [host, buildSearch(params)].join('?')
+# Utility method to URI encode an object as parameters
+buildSearch = (params) ->
+  ("#{encodeURIComponent(k)}=#{encodeURIComponent(v)}" for own k, v of params).join('&')
+# Utility method to extract parameters from a URI
+extractParams = (search) ->
+  search?.split('&').reduce(extractParam, {}) or {}
+# Utility method to extract parameters from a URI
+extractParam = (params, part) ->
+  [k, v] = part.split('=')
+  params[decodeURIComponent(k)] = decodeURIComponent(v)
+  params
+
+# Ensures that the user has chosen a spreadsheet as a data-source for their
+# inventory and orders
+spreadsheet = ->
+  console.debug 'spreadsheet()...'
+  Promise.resolve()
+    .then spreadsheet.id
+    .catch spreadsheet.redirect
+spreadsheet.id = ->
+  new Promise (resolve, reject) ->
+    localStorage.spreadsheet_id or throw "No spreadsheet ID"
+spreadsheet.redirect = ->
+  location.assign '/spreadsheet.html' unless location.pathname is '/spreadsheet.html'
+    
+# Load the orders from the database, in a format that's suitable for display
+# on the orders page.
+orders = ->
+  console.debug 'Loading the orders from the database...'
+  Promise.resolve()
+
+inventory = ->
+  console.debug 'Loading the inventory from the database...'
+  Promise.resolve()
+
+dashboard = ->
+  console.debug 'Loading the dashboard info from the database...'
+  Promise.resolve()
 
 setup = ->
   new Promise (resolve, reject) ->

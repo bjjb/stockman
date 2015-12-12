@@ -1,16 +1,66 @@
 extends layout
 
 block main
-  section.page#dashboard(data-template="/dashboard.html")
-  section.page#settings(data-template="/settings.html")
-  section.page#orders(data-template="/orders.html")
-  section.page#inventory(data-template="/inventory.html")
-  section.page#log(data-template="/log.html")
-  section.page#spreadsheet(data-template="/spreadsheet.html")
-  section.page#authorize
+  section.page#dashboard
     .page-header
-      h1 Sign in to your Google account
-    p.lead.
-      To access your spreadsheet, you need to sign in to Google. Click the button
-      to get started.
-    #google-signin
+      h1
+        span.icon.glyphicon.glyphicon-dashboard
+        | Dashboard
+
+    .row.statuses(data-template="#dashboard script.template")
+
+    script.template(type="text/html")
+      .col-lg-3.col-md-6
+        a(href="#inventory")
+          .panel(class="panel-success")
+            .panel-heading
+              .row
+                .col-xs-3
+                  span.glyphicon.massive(class="glyphicon-scale")
+                .col-xs-9.text-right
+                  .description {{inventory.message}}
+            .panel-footer
+              | View inventory
+              span.glyphicon.glyphicon-circle-arrow-right.pull-right
+
+      .col-lg-3.col-md-6
+        a(href="#orders")
+          .panel(class="panel-info")
+            .panel-heading
+              .row
+                .col-xs-3
+                  span.glyphicon.massive(class="glyphicon-shopping-cart")
+                .col-xs-9.text-right
+                  strong.huge.open-orders {{orders.open}}
+                  .description Open orders
+            .panel-footer
+              | View orders
+              span.glyphicon.glyphicon-circle-arrow-right.pull-right
+
+      .col-lg-3.col-md-6
+        a(href="#orders")
+          .panel(class="panel-warning")
+            .panel-heading
+              .row
+                .col-xs-3
+                  span.glyphicon.massive(class="glyphicon-shopping-cart")
+                .col-xs-9.text-right
+                  strong.huge.open-orders {{orders.hold}}
+                  .description Held orders
+            .panel-footer
+              | View orders
+              span.glyphicon.glyphicon-circle-arrow-right.pull-right
+
+      .col-lg-3.col-md-6
+        a(href="#orders")
+          .panel(class="panel-danger")
+            .panel-heading
+              .row
+                .col-xs-3
+                  span.glyphicon.massive(class="glyphicon-shopping-cart")
+                .col-xs-9.text-right
+                  strong.huge.open-orders {{orders.short}}
+                  .description Short orders
+            .panel-footer
+              | View orders
+              span.glyphicon.glyphicon-circle-arrow-right.pull-right
